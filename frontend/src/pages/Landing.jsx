@@ -329,7 +329,16 @@ const Landing = () => {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
           <p className="font-heading text-sm font-bold">Digital Cards<span className="text-indigo-600">.IA</span></p>
-          <p className="text-xs text-slate-400">© 2026 Digital Cards IA. Todos os direitos reservados.</p>
+          <div className="flex flex-col items-center gap-1 sm:items-end">
+            <p className="text-xs text-slate-400">© 2026 Digital Cards IA. Todos os direitos reservados.</p>
+            <Link
+              to="/admin"
+              data-testid="footer-admin-link"
+              className="text-xs font-medium text-slate-500 underline-offset-4 transition-colors hover:text-indigo-600 hover:underline"
+            >
+              Acesso administrativo
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
