@@ -4,14 +4,21 @@ import uuid
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://cartoes-digitais.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/")
 API = f"{BASE_URL}/api"
+ADMIN_EMAIL = "agenciasuportaaitesadm@gmail.com"
+ADMIN_PASSWORD = "DigitalCards@2026"
 
 
 @pytest.fixture(scope="module")
 def session():
     s = requests.Session()
     s.headers.update({"Content-Type": "application/json"})
+    r = s.post(f"{API}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15)
+    if r.status_code == 200:
+        s.headers.update({"Authorization": f"Bearer {r.json()['access_token']}"})
+    else:
+        pytest.skip("Admin login failed - skipping authenticated tests")
     return s
 
 

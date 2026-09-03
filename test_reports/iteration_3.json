@@ -1,0 +1,21 @@
+{
+  "summary": "Full e2e testing of admin JWT auth for Digital Cards IA. Backend: 18/18 pytest tests passed across test_auth.py (10) and test_clientes.py (8, updated to use Bearer token). Confirmed login success returns access_token+user, wrong password → 401 with PT-BR detail 'E-mail ou senha inválidos.', /auth/me requires Bearer, /api/clientes CRUD all require auth, /api/public/clientes/studio-exemplo stays open, admin seed idempotent (same user id across restarts/logins). Frontend: /admin unauth shows admin-login-form; wrong creds show login-error with PT-BR message; correct creds open dashboard (Visão geral) with token stored in localStorage 'dc_admin_token'; page reload keeps session (/auth/me revalidates); all nav sections (Visão geral, Clientes, Novo cliente, Aparência, Configurações) work; Encerrar sessão clears token and returns to login; landing '/' loads without auth and contains 'Acesso administrativo' link to /admin; public /c/studio-exemplo renders without login.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_auth.py", "/app/backend/tests/test_clientes.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py still uses deprecated @app.on_event('startup'); migrate to FastAPI lifespan handler.",
+    "Login endpoint returns JWT via response body only (no httpOnly cookie); localStorage-only storage is XSS-exposed. Acceptable for MVP but consider httpOnly cookie + CSRF for prod hardening.",
+    "No brute-force lockout / rate limiting on /api/auth/login — playbook recommends lockout after 5 failed attempts.",
+    "Admin.jsx growing; consider splitting AdminLogin into its own file for maintainability."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth.py", "/app/backend/tests/test_clientes.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None — seed admin + studio-exemplo cliente auto-created by backend startup. Test-created clients cleaned up via module fixture.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_auth.py and test_clientes.py (both use REACT_APP_BACKEND_URL env; test_clientes.py now auto-logs in and attaches Bearer). data-testid: admin-login-form, login-email-input, login-password-input, login-submit-button, login-error, admin-logout-button. Token key: dc_admin_token.",
+  "rca of the issue": "N/A — no issues found."
+}

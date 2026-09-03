@@ -23,6 +23,9 @@ import {
   CheckCircle2,
   FileEdit,
   Loader2,
+  LogOut,
+  Lock,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -58,6 +61,19 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const TOKEN_KEY = "dc_admin_token";
+
+const setAuthHeader = (token) => {
+  if (token) axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+  else delete axios.defaults.headers.common.Authorization;
+};
+
+const formatError = (detail, fallback) => {
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((e) => e?.msg || "").filter(Boolean).join(" ") || fallback;
+  return fallback;
+};
 
 const NAV = [
   { id: "overview", label: "Visão geral", icon: LayoutDashboard, testId: "admin-nav-overview" },
@@ -68,27 +84,88 @@ const NAV = [
 ];
 
 const EMPTY_FORM = {
-  nome: "",
-  slug: "",
-  descricao: "",
-  telefone: "",
-  whatsapp: "",
-  endereco: "",
-  mapsUrl: "",
-  horario: "",
-  instagram: "",
-  facebook: "",
-  tiktok: "",
-  website: "",
-  googleReviewUrl: "",
-  seoTitle: "",
-  seoDesc: "",
-  seoKeywords: "",
-  corFundo: "#09090B",
-  corBotoes: "#6366F1",
-  status: "Rascunho",
+  nome: "", slug: "", descricao: "", telefone: "", whatsapp: "", endereco: "",
+  mapsUrl: "", horario: "", instagram: "", facebook: "", tiktok: "", website: "",
+  googleReviewUrl: "", seoTitle: "", seoDesc: "", seoKeywords: "",
+  corFundo: "#09090B", corBotoes: "#6366F1", status: "Rascunho",
 };
 
+/* ---------------- Login ---------------- */
+const AdminLogin = ({ onLogin }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/auth/login`, { email, password });
+      setAuthHeader(data.access_token);
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      onLogin(data.user);
+    } catch (err) {
+      setError(formatError(err?.response?.data?.detail, "Não foi possível entrar. Tente novamente."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#FAFAFC] px-4">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <Link to="/" className="font-heading text-xl font-extrabold tracking-tight text-slate-900">
+            Digital Cards<span className="text-indigo-600">.IA</span>
+          </Link>
+          <p className="mt-2 text-sm text-slate-500">Painel administrativo</p>
+        </div>
+        <form
+          onSubmit={submit}
+          data-testid="admin-login-form"
+          className="rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-indigo-500/5 sm:p-10"
+        >
+          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+            <Lock className="h-5 w-5" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">Acesso restrito</h1>
+          <p className="mt-1 text-sm text-slate-500">Entre com suas credenciais de administrador.</p>
+
+          <div className="mt-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">E-mail</Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input data-testid="login-email-input" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" className="pl-9" autoComplete="username" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input data-testid="login-password-input" id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="pl-9" autoComplete="current-password" />
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <p data-testid="login-error" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <Button data-testid="login-submit-button" type="submit" disabled={loading} className="mt-6 h-12 w-full rounded-full bg-indigo-600 text-base hover:bg-indigo-700">
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Entrar
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ---------------- Shared UI ---------------- */
 const StatusBadge = ({ status }) =>
   status === "Publicado" ? (
     <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50">
@@ -242,8 +319,7 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
       }
       onSaved();
     } catch (err) {
-      const msg = err?.response?.data?.detail || "Não foi possível salvar o cliente.";
-      toast.error(msg);
+      toast.error(formatError(err?.response?.data?.detail, "Não foi possível salvar o cliente."));
     } finally {
       setSaving(false);
     }
@@ -365,7 +441,8 @@ const PlaceholderView = ({ icon: Icon, title, description, testId }) => (
   </div>
 );
 
-const Admin = () => {
+/* ---------------- Dashboard ---------------- */
+const Dashboard = ({ user, onLogout }) => {
   const [active, setActive] = useState("overview");
   const [editing, setEditing] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -378,12 +455,13 @@ const Admin = () => {
     try {
       const res = await axios.get(`${API}/clientes`);
       setClientes(res.data);
-    } catch {
+    } catch (err) {
+      if (err?.response?.status === 401) return onLogout();
       toast.error("Não foi possível carregar os clientes.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onLogout]);
 
   useEffect(() => {
     fetchClientes();
@@ -401,21 +479,9 @@ const Admin = () => {
     setSidebarOpen(false);
   };
 
-  const handleEdit = (cli) => {
-    setEditing(cli);
-    setActive("new-client");
-  };
-
-  const handleNewClient = () => {
-    setEditing(null);
-    setActive("new-client");
-  };
-
-  const handleSaved = async () => {
-    await fetchClientes();
-    setEditing(null);
-    setActive("clients");
-  };
+  const handleEdit = (cli) => { setEditing(cli); setActive("new-client"); };
+  const handleNewClient = () => { setEditing(null); setActive("new-client"); };
+  const handleSaved = async () => { await fetchClientes(); setEditing(null); setActive("clients"); };
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -451,9 +517,17 @@ const Admin = () => {
           ))}
         </nav>
       </div>
-      <Link to="/demo/cliente-exemplo" target="_blank" className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800">
-        <ExternalLink className="h-4 w-4" /> Ver cartão de exemplo
-      </Link>
+      <div className="space-y-3">
+        <Link to="/demo/cliente-exemplo" target="_blank" className="flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800">
+          <ExternalLink className="h-4 w-4" /> Ver cartão de exemplo
+        </Link>
+        <div className="border-t border-slate-800 pt-3">
+          <p className="truncate px-1 text-xs text-slate-500" title={user?.email}>{user?.email}</p>
+          <button data-testid="admin-logout-button" onClick={onLogout} className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
+            <LogOut className="h-4 w-4" /> Encerrar sessão
+          </button>
+        </div>
+      </div>
     </>
   );
 
@@ -537,6 +611,57 @@ const Admin = () => {
       </AlertDialog>
     </div>
   );
+};
+
+/* ---------------- Auth gate ---------------- */
+const Admin = () => {
+  const [status, setStatus] = useState("checking"); // checking | authed | anon
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      setStatus("anon");
+      return;
+    }
+    setAuthHeader(token);
+    axios
+      .get(`${API}/auth/me`)
+      .then((res) => {
+        setUser(res.data);
+        setStatus("authed");
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        setAuthHeader(null);
+        setStatus("anon");
+      });
+  }, []);
+
+  const handleLogin = (u) => {
+    setUser(u);
+    setStatus("authed");
+  };
+
+  const handleLogout = useCallback(async () => {
+    try { await axios.post(`${API}/auth/logout`); } catch { /* stateless */ }
+    localStorage.removeItem(TOKEN_KEY);
+    setAuthHeader(null);
+    setUser(null);
+    setStatus("anon");
+  }, []);
+
+  if (status === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#FAFAFC] text-slate-400" data-testid="admin-checking">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (status === "anon") return <AdminLogin onLogin={handleLogin} />;
+
+  return <Dashboard user={user} onLogout={handleLogout} />;
 };
 
 export default Admin;
