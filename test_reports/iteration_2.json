@@ -1,0 +1,18 @@
+{
+  "summary": "Full e2e testing for Digital Cards IA Cliente persistence feature. Backend: 8/8 pytest tests passed (list+seed, idempotent seed, create valid/invalid/duplicate, update+GET+delete verification, public GET by slug, 404 unknown slug). Frontend: Admin CRUD flow works end-to-end - create client via form (Publicado), row appears with 'Abrir mini site' + 'Copiar link', edit persists, delete confirmation dialog + confirm removes client, invalid slug shows PT-BR toast. Public /c/studio-exemplo renders CardTemplate with all 8 buttons (WhatsApp, Localização, Instagram, Facebook, TikTok, Website, Avaliar no Google, Ligar agora) plus endereço, horário, telefone. /c/unknown-slug shows 'Página não encontrada' state.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_clientes.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py uses deprecated @app.on_event('startup'); consider FastAPI lifespan handlers for future-proofing.",
+    "Admin.jsx (~543 lines) is approaching the 700-line guideline; consider splitting NewClientView into its own module as more fields/uploads are added.",
+    "Slug validation is duplicated between frontend SLUG_REGEX and backend SLUG_REGEX — acceptable but keep them in sync when rules change."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None additional; seed 'studio-exemplo' auto-created by backend startup. All test clients created during e2e were cleaned up.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend Cliente CRUD + public endpoint stable. Reuse /app/backend/tests/test_clientes.py for regression. Admin UI selectors use data-testid pattern: client-row-<slug>, client-edit-<slug>, client-delete-<slug>, client-open-<slug>, client-copy-<slug>, delete-confirm-dialog, delete-confirm-button, admin-save-client-button, field-*."
+}
