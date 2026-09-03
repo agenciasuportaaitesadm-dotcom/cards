@@ -1,0 +1,154 @@
+{
+  "project_info": {
+    "name": "Digital Cards IA",
+    "language": "pt-BR",
+    "theme_archetype": "Swiss & High-Contrast with Performance Indigo Accent",
+    "primary_context": "hybrid_fullstack",
+    "description": "Plataforma SaaS para criação e gerenciamento de cartões digitais profissionais com landing page de conversão, painel admin de gestão e mini sites móveis tema escuro."
+  },
+  "typography": {
+    "heading_font": "Plus Jakarta Sans, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "font_imports": "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');",
+    "hierarchy": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15]",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100",
+      "h3_subsection": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100",
+      "h4_card_title": "text-lg sm:text-xl font-semibold text-slate-800 dark:text-slate-200",
+      "body_base": "text-base leading-relaxed text-slate-600 dark:text-slate-300",
+      "body_small": "text-sm text-slate-500 dark:text-slate-400",
+      "caption_overline": "text-xs uppercase font-bold tracking-[0.2em] text-indigo-600 dark:text-indigo-400"
+    }
+  },
+  "colors": {
+    "landing_and_admin": {
+      "bg_primary": "#FAFAFC",
+      "bg_card": "#FFFFFF",
+      "bg_secondary": "#F1F5F9",
+      "border": "#E2E8F0",
+      "border_focus": "#6366F1",
+      "text_main": "#0F172A",
+      "text_muted": "#64748B",
+      "primary_indigo": "#4F46E5",
+      "primary_indigo_hover": "#4338CA",
+      "accent_light": "#EEF2FF",
+      "whatsapp_green": "#25D366",
+      "whatsapp_green_hover": "#1EBE57"
+    },
+    "public_digital_card_dark": {
+      "bg_primary": "#09090B",
+      "bg_card": "#18181B",
+      "bg_card_hover": "#27272A",
+      "border": "#27272A",
+      "text_main": "#FAFAFA",
+      "text_muted": "#A1A1AA",
+      "indigo_accent": "#6366F1",
+      "indigo_accent_hover": "#818CF8",
+      "social_button_bg": "#18181B",
+      "social_button_border": "rgba(255, 255, 255, 0.1)",
+      "social_button_hover": "#27272A"
+    }
+  },
+  "layout_strategies": {
+    "landing_page": {
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "header": "sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-slate-200/80 shadow-xs",
+      "hero_layout": "grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-16 lg:py-24",
+      "hero_text_span": "lg:col-span-7 space-y-6",
+      "hero_mockup_span": "lg:col-span-5 flex justify-center lg:justify-end",
+      "benefits_grid": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-16",
+      "form_container": "max-w-2xl mx-auto bg-white border border-slate-200 p-8 sm:p-10 rounded-2xl shadow-xl shadow-indigo-500/5"
+    },
+    "admin_panel": {
+      "wrapper": "min-h-screen bg-slate-50 flex flex-col md:flex-row",
+      "sidebar": "w-full md:w-64 bg-slate-900 text-slate-100 border-r border-slate-800 flex-shrink-0 p-6 flex flex-col justify-between min-h-screen",
+      "main_content": "flex-1 p-6 md:p-10 overflow-y-auto",
+      "kpi_grid": "grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8",
+      "table_wrapper": "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs",
+      "form_sections": "space-y-8 bg-white border border-slate-200 p-6 sm:p-8 rounded-xl"
+    },
+    "public_mini_site": {
+      "wrapper": "min-h-screen bg-[#09090B] text-[#FAFAFA] flex justify-center items-start py-0 sm:py-8 px-0 sm:px-4 selection:bg-indigo-500 selection:text-white",
+      "card_frame": "w-full max-w-md min-h-screen sm:min-h-[840px] bg-[#121215] border-0 sm:border border-[#27272A] sm:rounded-[32px] overflow-hidden shadow-2xl relative flex flex-col justify-between",
+      "cover_banner_height": "h-44 sm:h-48 w-full relative object-cover",
+      "profile_avatar_container": "-mt-16 text-center z-10 px-6",
+      "buttons_stack": "space-y-3 px-6 py-4",
+      "info_sections": "px-6 py-4 space-y-6"
+    }
+  },
+  "components_spec": {
+    "landing_header": {
+      "logo": "Textual 'Digital Cards IA' with indigo dot accent",
+      "cta_button": "Quero meu cartão",
+      "test_id": "landing-header-cta"
+    },
+    "hero_phone_mockup": {
+      "style": "iPhone style frame with sleek border, displaying 'Studio Exemplo' dark digital card live preview with interactive buttons",
+      "test_id": "hero-phone-mockup"
+    },
+    "interest_form": {
+      "fields": ["nome", "empresa", "whatsapp", "mensagem"],
+      "submit_cta": "Enviar mensagem de interesse",
+      "test_id": "interest-form"
+    },
+    "admin_nav_links": [
+      { "id": "overview", "label": "Visão geral", "icon": "LayoutDashboard", "test_id": "admin-nav-overview" },
+      { "id": "clients", "label": "Clientes", "icon": "Users", "test_id": "admin-nav-clients" },
+      { "id": "new-client", "label": "Novo cliente", "icon": "UserPlus", "test_id": "admin-nav-new-client" },
+      { "id": "appearance", "label": "Aparência", "icon": "Palette", "test_id": "admin-nav-appearance" },
+      { "id": "settings", "label": "Configurações", "icon": "Settings", "test_id": "admin-nav-settings" }
+    ],
+    "admin_new_client_sections": [
+      "Identidade do negócio",
+      "Mídia",
+      "Aparência",
+      "Botões e links",
+      "Informações locais",
+      "Conteúdo adicional",
+      "SEO local"
+    ],
+    "digital_card_demo_buttons": [
+      { "key": "whatsapp", "label": "WhatsApp Direct", "icon": "MessageCircle", "color": "#25D366" },
+      { "key": "location", "label": "Localização no Maps", "icon": "MapPin", "color": "#EA4335" },
+      { "key": "instagram", "label": "Siga no Instagram", "icon": "Instagram", "color": "#E4405F" },
+      { "key": "facebook", "label": "Página no Facebook", "icon": "Facebook", "color": "#1877F2" },
+      { "key": "tiktok", "label": "Canal do TikTok", "icon": "Video", "color": "#000000" },
+      { "key": "google_review", "label": "Avaliar no Google", "icon": "Star", "color": "#FBBC05" },
+      { "key": "call_now", "label": "Ligar agora", "icon": "Phone", "color": "#4F46E5" }
+    ]
+  },
+  "media_assets": {
+    "studio_exemplo_cover": "https://images.pexels.com/photos/13068380/pexels-photo-13068380.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "studio_exemplo_avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=srgb&fm=jpg&w=400&q=80",
+    "studio_exemplo_secondary": "https://images.unsplash.com/photo-1617351165725-ec1c8ca2bf67?crop=entropy&cs=srgb&fm=jpg&w=600&q=80",
+    "client_avatars": [
+      "https://images.pexels.com/photos/12931653/pexels-photo-12931653.jpeg?auto=compress&cs=tinysrgb&w=300",
+      "https://images.pexels.com/photos/31880922/pexels-photo-31880922.jpeg?auto=compress&cs=tinysrgb&w=300",
+      "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&w=300&q=80"
+    ]
+  },
+  "motion_and_interactions": {
+    "library": "framer-motion",
+    "hover_effects": "transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:shadow-lg",
+    "button_press": "active:scale-[0.98] transition-transform",
+    "card_link_hover": "hover:bg-[#27272A] hover:border-indigo-500/50 transition-all duration-200"
+  },
+  "accessibility_and_testing": {
+    "contrast_ratio": "APCA AA verified (4.5:1 min for body text, 3:1 for large display)",
+    "data_testid_policy": "Mandatory data-testid attributes on all interactive CTAs, inputs, navigation links, and KPI metrics",
+    "examples": {
+      "landing_form_submit": "data-testid=\"interest-form-submit-button\"",
+      "admin_new_client_submit": "data-testid=\"admin-save-client-button\"",
+      "card_whatsapp_click": "data-testid=\"card-whatsapp-button\""
+    }
+  },
+  "instructions_to_main_agent": [
+    "Ensure the app works cleanly across three distinct routes: '/' (Public Landing Page), '/admin' (SaaS Dashboard & Client Management), and '/demo/cliente-exemplo' (Dark Theme Mobile Digital Card).",
+    "Use Lucide-React icons for clean vector representation of all social and contact buttons (WhatsApp, MapPin, Instagram, Facebook, Video, Star, Phone, etc.).",
+    "Maintain high whitespace and clean borders (1px border-slate-200 in light mode, 1px border-zinc-800 in dark mode). No harsh rainbow gradients or childish emojis.",
+    "All form fields in '/admin' multi-section client form must render accurately with standard shadcn or clean custom styled input components.",
+    "The mini site '/demo/cliente-exemplo' must feel like an authentic mobile card web app with dark elegant surface (#09090B), crisp profile badge, clean call-to-action buttons, working hours table, and service listing.",
+    "Add 'data-testid' to every interactive button, menu link, form input, and table action item for robust test verification."
+  ]
+}
