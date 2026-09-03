@@ -86,6 +86,12 @@ class LoginInput(BaseModel):
     password: str
 
 
+class ChangePasswordInput(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
+
+
 # ---------------- Models ----------------
 class ClienteBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -178,6 +184,22 @@ async def me(user: dict = Depends(require_auth)):
 @api_router.post("/auth/logout")
 async def logout(user: dict = Depends(require_auth)):
     return {"message": "Sessão encerrada com sucesso."}
+
+
+@api_router.post("/auth/change-password")
+async def change_password(payload: ChangePasswordInput, user: dict = Depends(require_auth)):
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="As novas senhas não coincidem.")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="A nova senha deve ter pelo menos 8 caracteres.")
+    full = await db.users.find_one({"id": user["id"]})
+    if not full or not verify_password(payload.current_password, full.get("password_hash", "")):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta.")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(payload.new_password)}},
+    )
+    return {"message": "Senha alterada com sucesso. Faça login novamente."}
 
 
 @api_router.get("/clientes", response_model=List[Cliente])
@@ -286,12 +308,8 @@ async def seed_db():
             "created_at": now_iso(),
         })
         logger.info("Seed: usuário admin criado.")
-    elif not verify_password(admin_password, existing_admin.get("password_hash", "")):
-        await db.users.update_one(
-            {"email": admin_email},
-            {"$set": {"password_hash": hash_password(admin_password)}},
-        )
-        logger.info("Seed: senha do admin atualizada a partir do .env.")
+    # Observação: não sobrescrevemos a senha aqui para preservar
+    # alterações feitas pelo próprio administrador em "Segurança da conta".
 
     # Cliente de demonstração (idempotente)
     existing = await db.clientes.find_one({"slug": SEED_CLIENTE["slug"]})

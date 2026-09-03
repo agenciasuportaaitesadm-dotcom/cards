@@ -427,6 +427,66 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
   );
 };
 
+const SecurityView = ({ onLogout }) => {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!current) return toast.error("Informe a senha atual.");
+    if (next.length < 8) return toast.error("A nova senha deve ter pelo menos 8 caracteres.");
+    if (next !== confirm) return toast.error("As novas senhas não coincidem.");
+    setSaving(true);
+    try {
+      await axios.post(`${API}/auth/change-password`, {
+        current_password: current,
+        new_password: next,
+        confirm_password: confirm,
+      });
+      toast.success("Senha alterada com sucesso. Entre novamente com a nova senha.");
+      setCurrent(""); setNext(""); setConfirm("");
+      setTimeout(() => onLogout(), 1500);
+    } catch (err) {
+      toast.error(formatError(err?.response?.data?.detail, "Não foi possível alterar a senha."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div data-testid="settings-view">
+      <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">Configurações</h1>
+      <p className="mt-1 text-sm text-slate-500">Preferências da conta e segurança.</p>
+
+      <div className="mt-8 max-w-xl">
+        <FormSection icon={Lock} title="Segurança da conta" description="Altere a senha de acesso ao painel.">
+          <form onSubmit={submit} className="space-y-5" data-testid="change-password-form">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Senha atual</Label>
+              <Input data-testid="field-current-password" id="currentPassword" type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova senha</Label>
+              <Input data-testid="field-new-password" id="newPassword" type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="Mínimo de 8 caracteres" autoComplete="new-password" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar nova senha</Label>
+              <Input data-testid="field-confirm-password" id="confirmPassword" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repita a nova senha" autoComplete="new-password" />
+            </div>
+            <div className="flex justify-end">
+              <Button data-testid="change-password-button" type="submit" disabled={saving} className="rounded-full bg-indigo-600 px-8 hover:bg-indigo-700">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Alterar senha
+              </Button>
+            </div>
+          </form>
+        </FormSection>
+      </div>
+    </div>
+  );
+};
+
 const PlaceholderView = ({ icon: Icon, title, description, testId }) => (
   <div data-testid={testId}>
     <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
@@ -590,7 +650,7 @@ const Dashboard = ({ user, onLogout }) => {
           <NewClientView editing={editing} onSaved={handleSaved} onCancel={() => go("clients")} />
         )}
         {active === "appearance" && <PlaceholderView testId="appearance-view" icon={Palette} title="Aparência" description="Temas e estilos globais dos cartões." />}
-        {active === "settings" && <PlaceholderView testId="settings-view" icon={Settings} title="Configurações" description="Preferências da conta e integrações." />}
+        {active === "settings" && <SecurityView onLogout={onLogout} />}
       </main>
 
       <AlertDialog open={!!toDelete} onOpenChange={(o) => !o && setToDelete(null)}>

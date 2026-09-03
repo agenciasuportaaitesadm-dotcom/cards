@@ -1,0 +1,26 @@
+{
+  "summary": "Full e2e testing of the new 'Segurança da conta' change-password feature (backend + frontend). Backend: 24/24 pytest passed — new test_change_password.py (6 tests) covers 401 without token, 400 mismatch, 400 too short, 400 wrong current, 200 valid + old-password-fails/new-password-works + auto-restore, and public endpoint regression. All PT-BR error messages match spec verbatim ('As novas senhas não coincidem.', 'A nova senha deve ter pelo menos 8 caracteres.', 'Senha atual incorreta.', 'Senha alterada com sucesso. Faça login novamente.'). Regression tests (test_auth.py 10 + test_clientes.py 8) still pass; seed no longer overwrites admin password on startup — verified by restart persistence via test flow. Frontend e2e (9 steps): (1) login with ORIGINAL, (2) Configurações tab renders settings-view with change-password-form and all three fields + button, (3) mismatch → PT-BR toast (client-side, no request), (4) <8 chars → PT-BR toast (client-side), (5) wrong current → PT-BR toast from server 400 and admin STAYS logged in on settings-view, (6) valid ORIGINAL→NEW → success PT-BR toast + auto-logout to login screen (~1.5s), (7) login with NEW works, (8) restore NEW→ORIGINAL via UI, (9) final login with ORIGINAL confirmed. Password restored to DigitalCards@2026 at end (verified via API: ORIGINAL=200, NEW=401). No console errors other than expected 400/401 network responses for negative tests.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_change_password.py",
+    "/app/backend/tests/test_auth.py",
+    "/app/backend/tests/test_clientes.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Change-password endpoint validates match/length BEFORE verifying current password. This lets an unauthenticated-current-password caller probe 'mismatch/length' vs 'wrong current' branches — minor info-leak but acceptable since endpoint is behind Bearer auth.",
+    "SecurityView calls onLogout() locally after 1500ms but does NOT invalidate the JWT server-side (JWT is stateless HS256). Token from the old session remains valid until its 12h expiry — consider a token version/jti blacklist to force revocation after password change.",
+    "Admin.jsx is now ~730 lines; still recommend splitting SecurityView/AdminLogin/ClientForm into separate files.",
+    "No brute-force lockout on /api/auth/login or /api/auth/change-password (already noted in prior iteration; playbook suggests lockout after 5 fails)."
+  ],
+  "updated_files": ["/app/backend/tests/test_change_password.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 — RESTORED post-test",
+  "seed_data_creation": "None. All temporary passwords reverted; DB left in original state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_change_password.py — its valid-flow test both changes and restores the admin password, so the suite is repeatable. Frontend data-testids in Admin.jsx: settings-view, change-password-form, field-current-password, field-new-password, field-confirm-password, change-password-button, admin-nav-settings, admin-login-form, login-email-input, login-password-input, login-submit-button. Bcrypt is slow (~500-800ms per hash) so allow generous timeouts on change-password submits.",
+  "rca of the issue": "N/A — feature works end-to-end."
+}
