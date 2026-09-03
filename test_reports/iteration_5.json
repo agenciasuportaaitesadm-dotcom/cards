@@ -1,0 +1,30 @@
+{
+  "summary": "Full e2e testing of the NEW media upload feature (logo/profile/header) — backend + frontend. Backend: created /app/backend/tests/test_media.py with 8 tests covering (1) 401 without token, (2) reject .txt, (3) reject video on logo field, (4) reject oversized image >5MB, (5) upload PNG logo returns {path,type:image} + public GET serves with image/* Content-Type, (6) upload MP4 on header field returns type:video, (7) unknown /api/files path → 404, (8) seed /api/public/clientes/studio-exemplo unaffected. All 8 pass. Full regression pytest run: 32/32 passed (test_auth 10, test_change_password 6, test_clientes 8, test_media 8). Frontend (Playwright, logged in): three MediaUpload widgets render in Novo cliente → Mídia section; wrong-type .txt → PT-BR toast 'Use imagem JPG, PNG ou WEBP.' and NO preview; oversized (6MB) → PT-BR toast 'Arquivo muito grande. Limite de 5 MB.'; valid PNG upload shows preview + filename + Substituir + Remover; Substituir replaces file; Remover clears preview back to choose state; created 'teste-midia' (Publicado) with logo+profile+header images uploaded; /c/teste-midia rendered with card-cover-image and card-profile-avatar both sourced from `${BACKEND_URL}/api/files/digital-cards-ia/uploads/...` and the card-logo chip visible (profile+logo both set); /c/studio-exemplo still renders DEFAULT_COVER (pexels) when no headerUrl — default fallback works. Cleanup: deleted teste-midia at end; DB left with only seed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_media.py",
+    "/app/backend/tests/test_auth.py",
+    "/app/backend/tests/test_clientes.py",
+    "/app/backend/tests/test_change_password.py",
+    "/app/test_reports/pytest/pytest_media.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "MediaUpload posts FormData to /api/media/upload but relies on the axios global Authorization header set at login — works, but there is no explicit retry/refresh on 401. If token expires mid-form the user will only see a generic toast; the parent handleSubmit does handle 401 → onLogout, but the upload itself doesn't.",
+    "GET /api/files/{path} loads the entire object into memory and returns Response(content=...). For 25MB videos this could pressure the API pod under concurrency — consider StreamingResponse and/or a redirect/presigned URL from the object storage.",
+    "MIME type on serve_file trusts record.get('content_type') stored at upload time (derived from extension). No X-Content-Type-Options: nosniff header — low risk since ext is whitelisted, but worth adding.",
+    "backend/server.py is monolithic (~450 lines) and Admin.jsx is ~795 lines. Continue to prefer splitting: MediaUpload → own file, storage helpers → services/storage.py.",
+    "'Remover' clears the reference but does not attempt any delete; db.files record stays with is_deleted=False forever. Known limitation per requirements, but consider a soft-delete flag update so orphan tracking is possible.",
+    "Frontend MediaUpload derives filename from URL path (UUID.ext) so users only see a UUID, not the original filename they picked. Original filename is stored in db.files.original_filename — return it in the upload response and display it for better UX."
+  ],
+  "updated_files": ["/app/backend/tests/test_media.py"],
+  "success_rate": {"backend": "100% (32/32)", "frontend": "100% (13/13 e2e steps)"},
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (unchanged)",
+  "seed_data_creation": "Created and DELETED test client 'teste-midia' during e2e. Uploaded objects (2 PNGs) remain unreferenced in object storage (no delete API available, per problem statement). DB left with only seed 'studio-exemplo'.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Reuse /app/backend/tests/test_media.py. Note: tests need REACT_APP_BACKEND_URL exported (or defaults to production URL). MediaUpload data-testids: upload-{logo|profile|cover}-{choose|input|preview-image|preview-video|filename|replace|remove}. Card template testids: card-cover-image, card-cover-video, card-profile-avatar, card-logo. Frontend stores logoUrl/profileUrl/headerUrl as full `${API}/files/${path}` URLs and headerType as 'image'|'video'. Public page PublicCard maps cliente.headerType→coverVideo|cover accordingly.",
+  "rca of the issue": "N/A — feature works end-to-end."
+}

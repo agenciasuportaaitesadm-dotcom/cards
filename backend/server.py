@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Form, Response
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -7,6 +7,7 @@ import re
 import logging
 import bcrypt
 import jwt
+import requests
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
@@ -92,6 +93,53 @@ class ChangePasswordInput(BaseModel):
     confirm_password: str
 
 
+# ---------------- Object storage ----------------
+APP_NAME = "digital-cards-ia"
+STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
+STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+_storage_key = None
+
+IMAGE_EXT = {"jpg", "jpeg", "png", "webp"}
+VIDEO_EXT = {"mp4", "webm"}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_VIDEO_BYTES = 25 * 1024 * 1024
+MIME_TYPES = {
+    "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+    "webp": "image/webp", "mp4": "video/mp4", "webm": "video/webm",
+}
+
+
+def init_storage(force: bool = False):
+    global _storage_key
+    if _storage_key and not force:
+        return _storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+
+def put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = init_storage()
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    if resp.status_code == 404:
+        key = init_storage(force=True)
+        resp = requests.put(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_object(path: str):
+    key = init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 404:
+        key = init_storage(force=True)
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+
 # ---------------- Models ----------------
 class ClienteBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -112,6 +160,10 @@ class ClienteBase(BaseModel):
     seoTitle: Optional[str] = ""
     seoDesc: Optional[str] = ""
     seoKeywords: Optional[str] = ""
+    logoUrl: Optional[str] = ""
+    profileUrl: Optional[str] = ""
+    headerUrl: Optional[str] = ""
+    headerType: Optional[str] = ""
     corFundo: Optional[str] = "#09090B"
     corBotoes: Optional[str] = "#6366F1"
     status: Optional[str] = "Rascunho"  # "Publicado" | "Rascunho"
@@ -146,6 +198,10 @@ class ClienteUpdate(BaseModel):
     seoTitle: Optional[str] = None
     seoDesc: Optional[str] = None
     seoKeywords: Optional[str] = None
+    logoUrl: Optional[str] = None
+    profileUrl: Optional[str] = None
+    headerUrl: Optional[str] = None
+    headerType: Optional[str] = None
     corFundo: Optional[str] = None
     corBotoes: Optional[str] = None
     status: Optional[str] = None
@@ -200,6 +256,57 @@ async def change_password(payload: ChangePasswordInput, user: dict = Depends(req
         {"$set": {"password_hash": hash_password(payload.new_password)}},
     )
     return {"message": "Senha alterada com sucesso. Faça login novamente."}
+
+
+@api_router.post("/media/upload")
+async def upload_media(field: str = Form(...), file: UploadFile = File(...), _user: dict = Depends(require_auth)):
+    ext = file.filename.rsplit(".", 1)[-1].lower() if (file.filename and "." in file.filename) else ""
+    is_video = ext in VIDEO_EXT
+    allowed = (IMAGE_EXT | VIDEO_EXT) if field == "header" else IMAGE_EXT
+    if ext not in allowed:
+        msg = "Formato não suportado. Use JPG, PNG ou WEBP" + (", ou vídeo MP4/WEBM." if field == "header" else ".")
+        raise HTTPException(status_code=400, detail=msg)
+    data = await file.read()
+    limit = MAX_VIDEO_BYTES if is_video else MAX_IMAGE_BYTES
+    if len(data) > limit:
+        raise HTTPException(
+            status_code=400,
+            detail="Vídeo muito grande. Limite de 25 MB." if is_video else "Imagem muito grande. Limite de 5 MB.",
+        )
+    content_type = MIME_TYPES.get(ext, file.content_type or "application/octet-stream")
+    path = f"{APP_NAME}/uploads/{uuid.uuid4()}.{ext}"
+    try:
+        result = put_object(path, data, content_type)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Upload falhou: {e}")
+        raise HTTPException(status_code=502, detail="Não foi possível enviar o arquivo. Tente novamente.")
+    stored = result.get("path", path)
+    await db.files.insert_one({
+        "id": str(uuid.uuid4()),
+        "storage_path": stored,
+        "original_filename": file.filename,
+        "content_type": content_type,
+        "size": result.get("size", len(data)),
+        "is_deleted": False,
+        "created_at": now_iso(),
+    })
+    return {"path": stored, "type": "video" if is_video else "image", "content_type": content_type, "filename": file.filename}
+
+
+@api_router.get("/files/{path:path}")
+async def serve_file(path: str):
+    record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
+    if not record:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+    try:
+        content, ct = get_object(path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+    return Response(
+        content=content,
+        media_type=record.get("content_type") or ct,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @api_router.get("/clientes", response_model=List[Cliente])
@@ -290,6 +397,11 @@ SEED_CLIENTE = {
 @app.on_event("startup")
 async def seed_db():
     logger = logging.getLogger(__name__)
+    try:
+        init_storage()
+        logger.info("Storage inicializado.")
+    except Exception as e:
+        logger.error(f"Falha ao inicializar storage: {e}")
     # Admin user (idempotent)
     admin_email = os.environ["ADMIN_EMAIL"].lower().strip()
     admin_password = os.environ["ADMIN_PASSWORD"]

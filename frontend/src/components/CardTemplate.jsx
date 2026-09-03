@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   MessageCircle,
   MapPin,
@@ -60,8 +61,12 @@ const CardTemplate = ({ data }) => {
   const c = data || {};
   const corFundo = c.corFundo || "#121215";
   const corBotoes = c.corBotoes || "#6366F1";
-  const cover = c.cover || DEFAULT_COVER;
-  const avatar = c.avatar || DEFAULT_AVATAR;
+  const [videoFailed, setVideoFailed] = useState(false);
+  const coverVideo = c.coverVideo || "";
+  const coverImage = c.cover || "";
+  const avatar = c.avatar || c.logo || DEFAULT_AVATAR;
+  const logo = c.logo || "";
+  const showLogoChip = logo && c.avatar;
   const horario = parseHorario(c.horario);
   const servicos = c.servicos || [];
 
@@ -131,10 +136,29 @@ const CardTemplate = ({ data }) => {
         style={{ backgroundColor: corFundo }}
       >
         {/* Cover */}
-        <div className="relative h-48 w-full">
-          <img src={cover} alt={`Capa de ${c.nome || "cliente"}`} className="h-full w-full object-cover" />
+        <div className="relative h-48 w-full bg-black/30">
+          {coverVideo && !videoFailed ? (
+            <video
+              src={coverVideo}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls
+              onError={() => setVideoFailed(true)}
+              data-testid="card-cover-video"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <img
+              src={coverImage || DEFAULT_COVER}
+              alt={`Capa de ${c.nome || "cliente"}`}
+              data-testid="card-cover-image"
+              className="h-full w-full object-cover"
+            />
+          )}
           <div
-            className="absolute inset-0"
+            className="pointer-events-none absolute inset-0"
             style={{ background: `linear-gradient(to top, ${corFundo}, ${corFundo}4D, transparent)` }}
           />
         </div>
@@ -148,6 +172,9 @@ const CardTemplate = ({ data }) => {
             className="mx-auto h-28 w-28 rounded-3xl border-4 object-cover shadow-xl"
             style={{ borderColor: corFundo }}
           />
+          {showLogoChip && (
+            <img src={logo} alt="Logo" data-testid="card-logo" className="mx-auto mt-3 h-8 w-auto object-contain" />
+          )}
           <h1 className="font-heading mt-4 text-2xl font-bold tracking-tight" data-testid="card-business-name">
             {c.nome}
           </h1>

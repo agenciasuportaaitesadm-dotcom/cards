@@ -47,7 +47,15 @@ const PublicCard = () => {
     );
   }
 
-  return <CardTemplate data={cliente} />;
+  const data = {
+    ...cliente,
+    cover: cliente.headerType === "video" ? "" : (cliente.headerUrl || ""),
+    coverVideo: cliente.headerType === "video" ? (cliente.headerUrl || "") : "",
+    avatar: cliente.profileUrl || "",
+    logo: cliente.logoUrl || "",
+  };
+
+  return <CardTemplate data={data} />;
 };
 
 export default PublicCard;
