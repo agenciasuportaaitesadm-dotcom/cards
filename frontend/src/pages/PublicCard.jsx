@@ -17,9 +17,20 @@ const PublicCard = () => {
       .get(`${API}/public/clientes/${slug}`)
       .then((res) => {
         if (!active) return;
-        setCliente(res.data);
+        const cli = res.data;
+        setCliente(cli);
         setStatus("ok");
-        if (res.data?.seoTitle) document.title = res.data.seoTitle;
+        document.documentElement.lang = "pt-BR";
+        const nome = cli?.nome || "Cartão digital";
+        document.title = cli?.seoTitle?.trim() || `${nome} | Cartão digital`;
+        const desc = (cli?.seoDesc?.trim() || cli?.descricao?.trim() || `Cartão digital de ${nome}.`);
+        let meta = document.querySelector('meta[name="description"]');
+        if (!meta) {
+          meta = document.createElement("meta");
+          meta.setAttribute("name", "description");
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute("content", desc);
       })
       .catch(() => {
         if (!active) return;
@@ -52,7 +63,6 @@ const PublicCard = () => {
     cover: cliente.headerType === "video" ? "" : (cliente.headerUrl || ""),
     coverVideo: cliente.headerType === "video" ? (cliente.headerUrl || "") : "",
     avatar: cliente.profileUrl || "",
-    logo: cliente.logoUrl || "",
   };
 
   return <CardTemplate data={data} />;

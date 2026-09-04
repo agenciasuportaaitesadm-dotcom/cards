@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend-only E2E test of the 8 fix points for public mini sites (/c/:slug) and the /admin media form. Verified uniform theme button colors + automatic text/icon contrast in 3 theme combos (white+red, dark bg+light btn, light bg+dark btn), keyboard focus ring, preserved business name, circular avatar below media (no overlap), responsive header video (landscape + portrait, desktop + mobile) with working mute/unmute toggle, removal of the Logo upload, image crop dialog (zoom + drag + confirm/cancel) for profile and cover, video bypassing crop, create/edit save flow, and regression of login/logout, /admin protection, search/status filters and QR Code. 41/44 assertions passed. Only real functional gap found: SEO in pt-BR is NOT implemented (html lang=en, default Emergent title/description, no title fallback to business name).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/files/{path}", "issue": "No HTTP Range support: a request with 'Range: bytes=0-100' returns 200 with the whole body and no Accept-Ranges/206. iOS Safari requires 206 partial responses to play <video>, so header videos may not play on iPhone/iPad and seeking is impossible. Uses no-store cache header too (frontend sets public,max-age=3600 but the edge returns no-store)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "public/index.html + PublicCard.jsx (SEO pt-BR)", "issue": "SEO not localized: <html lang=\"en\">, <title>Emergent | Fullstack App</title>, <meta name=description content=\"A product of emergent.sh\">, no og:title/og:description. On /c/agencia-suporte-teste document.title stays 'Emergent | Fullstack App' because PublicCard only sets the title when cliente.seoTitle exists (no fallback to nome) and never sets meta description/og tags.", "selector": "document.documentElement.lang / document.title / meta[name=description]", "priority": "HIGH"},
+      {"component": "ImageCropDialog", "issue": "If the chosen image cannot be decoded/onCropComplete never fires, 'Aplicar e enviar' (image-crop-confirm) stays disabled with no error message or hint — user is stuck with a grey crop area (reproduced with a degenerate 200x300 PNG). Add error state/toast when the image fails to load.", "selector": "[data-testid=\"image-crop-confirm\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Public card action buttons (theme #E11D2A)", "issues": ["Hover shade lightens the button to rgb(230,65,76); white label contrast drops from 4.76:1 to ~3.97:1 (below WCAG AA 4.5 for normal text). Consider darkening instead of lightening dark themes on hover, or keep hover >=4.5:1."]},
+      {"screen": "Public card header video (portrait)", "issues": ["With object-fit: contain a 9:16 video is letterboxed with black side bars inside the 446px-wide card on desktop (no distortion, but visually heavy). Acceptable per requirement; optionally add a blurred backdrop."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/test_reports/prep_clients.py",
+    "/app/test_reports/prep_video3.py",
+    "/app/test_reports/cleanup_clients.py"
+  ],
+  "action_items": [
+    "Implement SEO pt-BR: set <html lang=\"pt-BR\">, a pt-BR default title/description in public/index.html, and in PublicCard set document.title = seoTitle || `${nome} | Cartão digital` plus meta description (seoDesc || descricao) and og:title/og:description/og:image.",
+    "Add HTTP Range (206) support + Accept-Ranges to GET /api/files/{path} so header videos play on iOS Safari and can be seeked.",
+    "Optional: keep hover button contrast >= 4.5:1 (current 3.97:1 for #E11D2A) and show an error when the crop dialog cannot load an image."
+  ],
+  "critical_code_review_comments": [
+    "CardTemplate.jsx: contrast logic is correct (readableOn/isDark) and every action button shares the single .dc-action + corBotoes source of truth — no per-type color overrides remain. Good.",
+    "MediaUpload uploads the cropped Blob to the unchanged /api/media/upload endpoint; each MediaUpload instance renders its own ImageCropDialog, so two dialogs can be open simultaneously if one is left open — consider a single shared dialog instance.",
+    "serve_file() loads the whole object into memory and returns a full Response; for 25MB videos this is memory-heavy and blocks Range/streaming. Consider StreamingResponse + Range handling.",
+    "Admin.jsx is 1021 lines — above the 700-line guideline; split MediaUpload/QRCodeDialog/ClientForm into separate modules."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "93% (41/44 assertions; 3 SEO assertions failed)"},
+  "seed_data_creation": "Created published clients via API for contrast/video coverage (kept for re-verification): /c/teste-escuro-botao-claro (#0B0B10 bg + #F5F5F5 buttons), /c/teste-claro-botao-escuro (#FAFAFA bg + #141420 buttons), /c/teste-video-cabecalho (landscape 640x360 WebM header) and /c/teste-video-vertical (portrait 360x640 WebM header, uploaded through /api/media/upload). Temporary client qa-crop-teste (created to validate the save flow) was deleted. Scripts to recreate/cleanup: /app/test_reports/prep_clients.py, prep_video3.py, cleanup_clients.py.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (unchanged, login/logout verified)",
+  "context_for_next_testing_agent": "Playwright's bundled Chromium has no H.264/AAC support, so MP4 header videos show a black box (readyState 0, paused, no error event) in automation only — this is a TEST-ENVIRONMENT limitation, not an app bug. Use WebM (VP8/Vorbis) fixtures: /tmp/landscape.webm, /tmp/portrait.webm (regenerate with imageio-ffmpeg, see /app/test_reports/prep_video3.py). Also note that on MP4 failure the component does NOT fall back to the cover image because no error event fires — worth a UX poster/fallback if desired. Admin login testids are login-email-input / login-password-input / login-submit-button (not admin-email-input). admin-nav-* exist twice (hidden desktop sidebar + mobile); on 390px click the visible 'Novo cliente' button instead. For upload tests use page.set_input_files with a real JPEG buffer (a degenerate PNG leaves the crop confirm disabled).",
+  "rca_of_the_issue": "SEO pt-BR gap: public/index.html still ships the Emergent CRA defaults (lang=en, title, description) and PublicCard.jsx only executes document.title = res.data.seoTitle when the optional seoTitle field is non-empty; seeded clients have seoTitle empty, so the public mini site keeps the English default title/description and no og tags are emitted. /api/files Range gap: serve_file() returns a plain Response with the full body and ignores the Range request header, so no 206/Accept-Ranges is produced."
+}

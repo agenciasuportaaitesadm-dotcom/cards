@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 import { toast } from "sonner";
+import ImageCropDialog from "@/components/ImageCropDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -452,11 +453,10 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
           </div>
         </FormSection>
 
-        <FormSection icon={ImageIcon} title="Mídia" description="Envie a logo, a foto de perfil e a mídia de cabeçalho do cliente.">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <MediaUpload label="Logo" field="logo" testId="upload-logo" value={form.logoUrl} onChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))} />
-            <MediaUpload label="Foto de perfil" field="profile" testId="upload-profile" value={form.profileUrl} onChange={(url) => setForm((f) => ({ ...f, profileUrl: url }))} />
-            <MediaUpload label="Imagem/vídeo de cabeçalho" field="header" testId="upload-cover" allowVideo value={form.headerUrl} valueType={form.headerType} onChange={(url, type) => setForm((f) => ({ ...f, headerUrl: url, headerType: url ? (type || "image") : "" }))} />
+        <FormSection icon={ImageIcon} title="Mídia" description="Envie a foto de perfil e a mídia de cabeçalho do cliente.">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <MediaUpload label="Foto de perfil" field="profile" testId="upload-profile" cropAspect={1} cropShape="round" value={form.profileUrl} onChange={(url) => setForm((f) => ({ ...f, profileUrl: url }))} />
+            <MediaUpload label="Imagem/vídeo de cabeçalho" field="header" testId="upload-cover" allowVideo cropAspect={3 / 2} cropShape="rect" value={form.headerUrl} valueType={form.headerType} onChange={(url, type) => setForm((f) => ({ ...f, headerUrl: url, headerType: url ? (type || "image") : "" }))} />
           </div>
         </FormSection>
 
@@ -586,12 +586,30 @@ const SecurityView = ({ onLogout }) => {
 const IMG_EXT = ["jpg", "jpeg", "png", "webp"];
 const VID_EXT = ["mp4", "webm"];
 
-const MediaUpload = ({ label, field, value, valueType, onChange, allowVideo, testId }) => {
+const MediaUpload = ({ label, field, value, valueType, onChange, allowVideo, testId, cropAspect = 1, cropShape = "rect" }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadedName, setUploadedName] = useState("");
+  const [cropSrc, setCropSrc] = useState("");
   const inputRef = useRef(null);
   const isVideo = allowVideo && valueType === "video";
   const pick = () => inputRef.current?.click();
+
+  const uploadFile = async (fileOrBlob, filename) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("field", field);
+      fd.append("file", fileOrBlob, filename);
+      const { data } = await axios.post(`${API}/media/upload`, fd);
+      setUploadedName(data.filename || filename);
+      onChange(`${API}/files/${data.path}`, data.type);
+      toast.success("Arquivo enviado com sucesso.");
+    } catch (err) {
+      toast.error(formatError(err?.response?.data?.detail, "Falha ao enviar o arquivo."));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -604,20 +622,23 @@ const MediaUpload = ({ label, field, value, valueType, onChange, allowVideo, tes
     }
     const maxMB = video ? 25 : 5;
     if (file.size > maxMB * 1024 * 1024) return toast.error(`Arquivo muito grande. Limite de ${maxMB} MB.`);
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("field", field);
-      fd.append("file", file);
-      const { data } = await axios.post(`${API}/media/upload`, fd);
-      setUploadedName(data.filename || file.name);
-      onChange(`${API}/files/${data.path}`, data.type);
-      toast.success("Arquivo enviado com sucesso.");
-    } catch (err) {
-      toast.error(formatError(err?.response?.data?.detail, "Falha ao enviar o arquivo."));
-    } finally {
-      setUploading(false);
+    if (video) {
+      await uploadFile(file, file.name);
+    } else {
+      // Imagem: abrir ajuste (zoom/reposição) antes de enviar
+      setCropSrc(URL.createObjectURL(file));
     }
+  };
+
+  const handleCropConfirm = async (blob) => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc("");
+    await uploadFile(blob, `${field}-ajustada.jpg`);
+  };
+
+  const handleCropCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc("");
   };
 
   const accept = allowVideo ? ".jpg,.jpeg,.png,.webp,.mp4,.webm" : ".jpg,.jpeg,.png,.webp";
@@ -642,6 +663,9 @@ const MediaUpload = ({ label, field, value, valueType, onChange, allowVideo, tes
             )}
           </div>
           <p className="truncate text-xs text-slate-400" data-testid={`${testId}-filename`}>{fileName}</p>
+          {!isVideo && (
+            <p className="text-xs text-slate-400">Foto ajustada. Use "Substituir" para reenquadrar.</p>
+          )}
           <div className="flex gap-2">
             <Button type="button" size="sm" variant="outline" className="rounded-full" onClick={pick} disabled={uploading} data-testid={`${testId}-replace`}>
               {uploading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />} Substituir
@@ -664,6 +688,15 @@ const MediaUpload = ({ label, field, value, valueType, onChange, allowVideo, tes
           <span className="text-xs text-slate-400">{allowVideo ? "Imagem até 5MB ou vídeo até 25MB" : "JPG, PNG ou WEBP até 5MB"}</span>
         </button>
       )}
+      <ImageCropDialog
+        open={!!cropSrc}
+        src={cropSrc}
+        aspect={cropAspect}
+        shape={cropShape}
+        title={cropShape === "round" ? "Ajustar foto de perfil" : "Ajustar imagem de cabeçalho"}
+        onCancel={handleCropCancel}
+        onConfirm={handleCropConfirm}
+      />
     </div>
   );
 };

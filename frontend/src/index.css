@@ -78,3 +78,23 @@ body {
         display: contents !important;
     }
 }
+
+/* Botão de ação do mini site público: cor de tema uniforme, com hover e foco acessíveis */
+.dc-action {
+    background-color: var(--btn);
+    color: var(--btn-fg);
+    border: 1px solid var(--btn);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dc-action:hover {
+    background-color: var(--btn-hover);
+    border-color: var(--btn-hover);
+    transform: translateY(-1px);
+}
+.dc-action:focus-visible {
+    outline: 3px solid var(--btn-fg);
+    outline-offset: 2px;
+}
+.dc-action:active {
+    transform: scale(0.99);
+}

@@ -103,6 +103,17 @@
 #====================================================================================================
 
 frontend:
+  - task: "Correção do mini site público (cores/contraste/vídeo/áudio) + formulário de mídia (remover logomarca, crop) + pt-BR"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/CardTemplate.jsx, frontend/src/pages/Admin.jsx, frontend/src/components/ImageCropDialog.jsx, frontend/src/lib/themeContrast.js, frontend/src/lib/imageCrop.js, frontend/src/pages/PublicCard.jsx, frontend/src/index.css"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) Botão único reutilizável (ActionButton + classe .dc-action): TODOS os botões usam corBotoes no fundo/borda/hover/foco. 2) Contraste automático (themeContrast.js: luminância WCAG) escolhe texto/ícone claro/escuro para botões E textos do card conforme corFundo/corBotoes. 3) Vídeo de cabeçalho object-contain com detecção portrait/landscape (altura responsiva, sem cortar/deformar). 4) Botão de som (card-video-sound-toggle) alterna mudo/som e ícone; autoplay muted mantido. 5) Logomarca removida do form, template e PublicCard (profile/header preservados). 6) Foto de perfil circular (rounded-full, aspect-square, object-cover) ABAIXO da mídia com espaçamento, sem sobrepor. 7) Crop/zoom/reposição (react-easy-crop) antes de enviar foto de perfil (1:1) e capa (3:2); imagem já enquadrada é enviada ao endpoint existente (sem mudança de DB). 8) Nome exibido sem transformação. Testar as 3 combinações de contraste."
   - task: "QR Code do mini site na lista de clientes (aba Clientes)"
     implemented: true
     working: "NA"
