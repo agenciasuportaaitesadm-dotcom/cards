@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import {
@@ -197,7 +197,7 @@ const copyLink = (slug) => {
   toast.success("Link copiado para a área de transferência.");
 };
 
-const ClientsTable = ({ clientes, loading, onEdit, onDelete, title }) => (
+const ClientsTable = ({ clientes, loading, onEdit, onDelete, title, emptyMessage = "Nenhum cliente cadastrado ainda." }) => (
   <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
       <h2 className="font-heading text-lg font-semibold text-slate-900">{title}</h2>
@@ -208,7 +208,7 @@ const ClientsTable = ({ clientes, loading, onEdit, onDelete, title }) => (
       </div>
     ) : clientes.length === 0 ? (
       <div className="py-16 text-center text-sm text-slate-400" data-testid="clients-empty">
-        Nenhum cliente cadastrado ainda.
+        {emptyMessage}
       </div>
     ) : (
       <div className="overflow-x-auto">
@@ -584,6 +584,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toDelete, setToDelete] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchClientes = useCallback(async () => {
     setLoading(true);
@@ -607,6 +609,23 @@ const Dashboard = ({ user, onLogout }) => {
     publicados: clientes.filter((c) => c.status === "Publicado").length,
     rascunhos: clientes.filter((c) => c.status !== "Publicado").length,
   };
+
+  const filteredClientes = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return clientes.filter((c) => {
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "Publicado" ? c.status === "Publicado" : c.status !== "Publicado");
+      const matchesSearch =
+        !q ||
+        (c.nome || "").toLowerCase().includes(q) ||
+        (c.slug || "").toLowerCase().includes(q);
+      return matchesStatus && matchesSearch;
+    });
+  }, [clientes, search, statusFilter]);
+
+  const filtersActive = search.trim() !== "" || statusFilter !== "all";
+  const clearFilters = () => { setSearch(""); setStatusFilter("all"); };
 
   const go = (id) => {
     setActive(id);
@@ -717,7 +736,67 @@ const Dashboard = ({ user, onLogout }) => {
                 <UserPlus className="mr-2 h-4 w-4" /> Novo cliente
               </Button>
             </div>
-            <ClientsTable clientes={clientes} loading={loading} onEdit={handleEdit} onDelete={setToDelete} title="Todos os clientes" />
+
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  data-testid="clients-search-input"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por nome ou slug..."
+                  className="pl-9"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    data-testid="clients-search-clear"
+                    onClick={() => setSearch("")}
+                    aria-label="Limpar busca"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger data-testid="clients-status-filter" className="w-full sm:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="Publicado">Publicado</SelectItem>
+                    <SelectItem value="Rascunho">Rascunho</SelectItem>
+                  </SelectContent>
+                </Select>
+                {filtersActive && (
+                  <Button
+                    data-testid="clients-clear-filters"
+                    onClick={clearFilters}
+                    variant="outline"
+                    className="rounded-full"
+                  >
+                    <X className="mr-1.5 h-3.5 w-3.5" /> Limpar
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {filtersActive && !loading && (
+              <p className="mb-4 text-sm text-slate-500" data-testid="clients-filter-count">
+                Mostrando {filteredClientes.length} de {clientes.length} clientes
+              </p>
+            )}
+
+            <ClientsTable
+              clientes={filteredClientes}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={setToDelete}
+              title="Todos os clientes"
+              emptyMessage={filtersActive ? "Nenhum cliente corresponde à busca ou ao filtro selecionado." : "Nenhum cliente cadastrado ainda."}
+            />
           </div>
         )}
 

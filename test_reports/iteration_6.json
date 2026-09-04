@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only testing of the new 'Busca e filtros na lista de clientes' feature in /admin (Clientes tab), desktop 1920x1080 and mobile 390x844. All 12 requested scenarios passed: unauthenticated /admin shows login form (no clients UI), JWT login works, full list shows 3 seeded clients (Barbearia Central=Publicado, Padaria do Bairro=Rascunho, Studio Exemplo=Publicado), search by name ('barbearia' -> 1 row), search by slug ('padaria-do-bairro' -> 1 row), status filters Publicado (2 rows) / Rascunho (1 row) / Todos (3 rows), combined status+search ('Publicado'+'studio' -> only Studio Exemplo), 'x' clear resets only the text, 'Limpar' resets search + status to 'Todos os status' and disappears afterwards, filter counter 'Mostrando X de Y clientes' only shown when filters active and numerically correct (1/3, 0/3), empty state message 'Nenhum cliente corresponde à busca ou ao filtro selecionado.' rendered via clients-empty, Overview KPIs remained real totals (3/2/1) after filtering. Mobile: sidebar toggle -> Clientes, search/select/Limpar all inside 390px viewport (no horizontal page overflow, scrollWidth==clientWidth==390) and fully functional. No console errors captured.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Clientes (mobile 390px)", "issues": ["Clients table needs horizontal scroll on mobile; action buttons (Abrir mini site / Copiar link / Editar / Excluir) are cut off at the right edge and there is no visual scroll affordance. Pre-existing, not caused by this feature, but hurts mobile-first UX.", "Status select is 228px wide next to 'Limpar' (110px) - acceptable, but full-width select on its own row would read better on 390px."]},
+      {"screen": "Admin > Clientes", "issues": ["Empty-state text uses text-slate-400 on white (~2.6:1 contrast) - below WCAG AA for body text; consider slate-500/600."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: improve mobile table readability in Clientes (stacked cards or visible scroll hint) so row action buttons are reachable at 390px.",
+    "Optional: raise empty-state text contrast (slate-400 -> slate-500/600).",
+    "Testability: both the desktop (hidden md:flex) and mobile sidebars render simultaneously, so data-testids admin-nav-* / admin-logout-button exist twice in the DOM (first instance hidden). Playwright needs ':visible'. Consider rendering only one sidebar or suffixing testids."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx is 882 lines - above the 700-line guideline; consider splitting Dashboard/ClientsTable/NewClientView/SecurityView into separate modules.",
+    "filteredClientes useMemo is correct: search matches nome+slug case-insensitively/trimmed and status uses 'Publicado' vs everything-else (safe for any other draft label). KPIs correctly derive from the unfiltered 'clientes' list.",
+    "Minor UX: search/status filter state persists when navigating away to Visão geral and back to Clientes (verified: filter stayed 'Rascunho'). Acceptable, but confirm it's intended."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "100% (12/12 scenarios passed)"},
+  "seed_data_creation": "None - used existing 3 seeded clients; no data created or deleted.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (valid, login works)",
+  "context_for_next_testing_agent": "Search/filter feature in Admin Clientes tab is fully verified on desktop and mobile. When writing Playwright for admin nav on mobile, use '[data-testid=\"admin-nav-clients\"]:visible' because duplicate testids exist (desktop sidebar is rendered but hidden). Backend pytest was previously 100% passing and was not re-run.",
+  "rca_of_the_issue": "No functional defects found. Only two initial test-script failures occurred (f-string backslash and duplicate hidden testid) - both were test-side issues and were fixed in the scripts."
+}

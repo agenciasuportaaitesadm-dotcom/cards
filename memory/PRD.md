@@ -25,9 +25,9 @@ SaaS (PT-BR) para criação e gerenciamento de cartões digitais profissionais. 
 - 2026-06: Autenticação (login/me/logout) protegendo `/admin` e endpoints de clientes; admin único seedado (agenciasuportaaitesadm@gmail.com). Tela de login PT-BR, sessão persistente, "Encerrar sessão".
 - 2026-06: "Segurança da conta" (Configurações) — troca de senha com validação (senha atual, mín. 8, confirmação), logout após sucesso; seed não sobrescreve senha alterada.
 - 2026-06: **Upload real de mídia** (logo, foto de perfil, cabeçalho imagem/vídeo) via object storage. Referência (URL) salva no doc do cliente; binário fora do Mongo. Validação tipo/tamanho (imagem 5MB, vídeo 25MB) no front e back. `GET /api/files/{path}` público; `POST /api/media/upload` autenticado. CardTemplate renderiza vídeo (mute/loop/controls + fallback imagem/default), logo e foto de perfil condicionalmente.
+- 2026-06: **Busca e filtros na lista de clientes** (aba Clientes): busca por nome ou slug, filtro por status (Todos/Publicado/Rascunho), botão "Limpar", contador "Mostrando X de Y clientes", estado vazio específico para filtro sem resultados. Filtragem client-side (sem nova estrutura de banco). KPIs da Visão geral preservam os totais reais. Testado (32 pytest + 12/12 cenários UI, desktop e mobile).
 
 ## Backlog (prioridade)
-- P1: Busca por nome + filtro por status na lista de clientes.
 - P1: QR Code do link público de cada cliente.
 - P2: Aba "Aparência" funcional (tema padrão para novos cartões).
 - P2: Soft-delete de arquivos órfãos; StreamingResponse para vídeos grandes.

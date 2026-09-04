@@ -101,3 +101,33 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+frontend:
+  - task: "Busca e filtros na lista de clientes (aba Clientes)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Admin.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Adicionada barra de busca (por nome ou slug), filtro por status (Todos/Publicado/Rascunho), botão Limpar (aparece só com filtro ativo), contador 'Mostrando X de Y clientes' e estado vazio específico para filtro sem resultados. Overview KPIs continuam usando a lista completa (totais reais inalterados). Apenas a aba Clientes foi alterada."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.1"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Busca e filtros na lista de clientes (aba Clientes)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Repositório importado (branch main), .env restaurado (JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD, EMERGENT_LLM_KEY). 32 testes pytest passam. Implementei somente busca+filtros na aba Clientes. Testar via UI a matriz completa."
