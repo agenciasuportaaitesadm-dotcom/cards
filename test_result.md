@@ -103,6 +103,17 @@
 #====================================================================================================
 
 frontend:
+  - task: "QR Code do mini site na lista de clientes (aba Clientes)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/Admin.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Ação 'QR Code' por cliente. Habilitada só para Publicado (abre modal com nome, QR gerado no frontend via lib 'qrcode', URL pública window.location.origin + /c/slug, botões Baixar PNG / Copiar link / Fechar; download com nome qrcode-{slug}.png). Para Rascunho: botão desabilitado com title 'Publique o cliente para gerar o QR Code'. Sem endpoint novo, sem alteração de modelo/DB. Nenhum dado pessoal no QR, apenas a URL."
   - task: "Busca e filtros na lista de clientes (aba Clientes)"
     implemented: true
     working: "NA"

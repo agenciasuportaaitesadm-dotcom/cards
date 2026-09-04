@@ -1,0 +1,26 @@
+{
+  "summary": "Frontend-only testing of the new QR Code feature in /admin > Clientes (per request, backend skipped). Executed a single Playwright suite (desktop 1920x1080 + mobile 390x844) covering: protected /admin access, JWT login, QR modal for published clients (studio-exemplo, barbearia-central), slug-correct public URL, PNG dataURL image, download PNG filename, copy link (toast + clipboard content), close via 'Fechar' and via dialog X, draft client (padaria-do-bairro) disabled QR button, mobile responsiveness, and regression of search/status filters. 22/22 checks passed with zero console errors.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Clientes (mobile 390px)", "issues": ["Cosmetic only: the QR dialog is vertically tall (QR 214px + URL wrap + 3 stacked buttons); on very short viewports the header may require scrolling inside the dialog. No horizontal overflow (delta=0) and all 3 buttons are fully inside the viewport."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_7.json"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "QrCodeDialog correctly builds the URL as `${window.location.origin}/c/${cliente.slug}` (the review note about a hardcoded '/c/digital-cards-ia' is NOT present in the current code) - verified live for both published slugs.",
+    "Admin.jsx is 988 lines - consider splitting (QrCodeDialog, ClientsTable, forms) into separate modules for maintainability; already above the 700-line guideline.",
+    "Login form testids are login-email-input / login-password-input / login-submit-button (not admin-login-email as stated in the request) - keep the request docs in sync; no code change needed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (skipped per request)", "frontend": "100% (22/22 checks)"},
+  "seed_data_creation": "None. Used existing 3 clients (Barbearia Central/Publicado, Padaria do Bairro/Rascunho, Studio Exemplo/Publicado).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (worked; token key dc_admin_token)",
+  "context_for_next_testing_agent": "QR Code feature fully verified in iteration_7 (desktop + mobile), including download filename qrcode-<slug>.png, clipboard content, both close paths, and disabled draft button (disabled + title 'Publique o cliente para gerar o QR Code'). Search/status-filter regression re-verified (search 'barbearia' -> 1 row, filter Rascunho -> 1 row, clear -> 3 rows). Login testids: login-email-input/login-password-input/login-submit-button. On mobile use ':visible' with admin-nav-* and admin-sidebar-toggle due to duplicated testids.",
+  "rca_of_the_issue": "N/A - no defects found."
+}
