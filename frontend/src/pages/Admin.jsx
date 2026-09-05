@@ -29,6 +29,10 @@ import {
   RefreshCw,
   QrCode,
   Download,
+  Plus,
+  ArrowUp,
+  ArrowDown,
+  ListChecks,
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 import { toast } from "sonner";
@@ -100,6 +104,7 @@ const EMPTY_FORM = {
   nome: "", slug: "", descricao: "", telefone: "", whatsapp: "", endereco: "",
   mapsUrl: "", horario: "", instagram: "", facebook: "", tiktok: "", website: "",
   googleReviewUrl: "", seoTitle: "", seoDesc: "", seoKeywords: "",
+  servicos: [],
   logoUrl: "", profileUrl: "", headerUrl: "", headerType: "",
   corFundo: "#09090B", corBotoes: "#6366F1", status: "Rascunho",
 };
@@ -373,6 +378,39 @@ const Field = ({ label, id, children, hint }) => (
   </div>
 );
 
+const ServicosEditor = ({ servicos, onChange }) => {
+  const list = servicos || [];
+  const update = (i, key, val) => onChange(list.map((s, idx) => (idx === i ? { ...s, [key]: val } : s)));
+  const add = () => onChange([...list, { nome: "", preco: "" }]);
+  const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const copy = [...list];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    onChange(copy);
+  };
+  return (
+    <div className="space-y-3" data-testid="servicos-editor">
+      {list.length === 0 && (
+        <p className="text-sm text-slate-400" data-testid="servicos-empty">Nenhum serviço adicionado. Clique em "Adicionar serviço".</p>
+      )}
+      {list.map((s, i) => (
+        <div key={i} data-testid={`servico-row-${i}`} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center">
+          <Input data-testid={`servico-nome-${i}`} value={s.nome || ""} onChange={(e) => update(i, "nome", e.target.value)} placeholder="Nome do serviço (ex.: Corte masculino)" className="flex-1 bg-white" />
+          <Input data-testid={`servico-preco-${i}`} value={s.preco || ""} onChange={(e) => update(i, "preco", e.target.value)} placeholder="A partir de R$ 80 / Sob consulta" className="flex-1 bg-white" />
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9" data-testid={`servico-up-${i}`} onClick={() => move(i, -1)} disabled={i === 0} aria-label="Mover para cima"><ArrowUp className="h-4 w-4" /></Button>
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9" data-testid={`servico-down-${i}`} onClick={() => move(i, 1)} disabled={i === list.length - 1} aria-label="Mover para baixo"><ArrowDown className="h-4 w-4" /></Button>
+            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600" data-testid={`servico-remove-${i}`} onClick={() => remove(i)} aria-label="Remover serviço"><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" className="rounded-full" data-testid="servicos-add-button" onClick={add}><Plus className="mr-2 h-4 w-4" /> Adicionar serviço</Button>
+    </div>
+  );
+};
+
 const FormSection = ({ icon: Icon, title, description, children }) => (
   <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
     <div className="mb-6 flex items-start gap-3">
@@ -486,6 +524,10 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
             <Field label="Website" id="website"><Input data-testid="field-website" id="website" value={form.website} onChange={set("website")} placeholder="https://..." /></Field>
             <Field label="URL de avaliação do Google" id="googleReview"><Input data-testid="field-google-review" id="googleReview" value={form.googleReviewUrl} onChange={set("googleReviewUrl")} placeholder="https://g.page/r/..." /></Field>
           </div>
+        </FormSection>
+
+        <FormSection icon={ListChecks} title="Serviços" description="Lista opcional exibida no cartão, após os botões e antes do endereço.">
+          <ServicosEditor servicos={form.servicos} onChange={(v) => setForm((f) => ({ ...f, servicos: v }))} />
         </FormSection>
 
         <FormSection icon={MapPin} title="Informações locais" description="Contato, endereço e funcionamento.">

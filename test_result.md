@@ -103,6 +103,17 @@
 #====================================================================================================
 
 frontend:
+  - task: "Ajustes mini site (vídeo vertical blur, remover website duplicado, remover Ligar agora) + seção Serviços (CRUD/reorder)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/CardTemplate.jsx, frontend/src/pages/Admin.jsx, backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) Vídeo vertical: fundo desfocado derivado do próprio vídeo (video bg object-cover blur-2xl opacity-60) preenche as barras laterais; vídeo principal object-contain (sem cortar/deformar); horizontal mantém responsivo. 2) Link textual de website no rodapé removido (só o botão Website da lista permanece). 3) Botão 'Ligar agora' (card-call-button) removido da lista; telefone inferior (card-phone-link) preservado. 4) Seção Serviços: backend model Servico {nome, preco} + campo servicos em ClienteBase/ClienteUpdate; ServicosEditor no form (adicionar/editar/excluir/reordenar via setas up/down); persistência no padrão existente (form enviado no POST/PUT). Público: card-services-section só aparece com serviços, após botões e antes do endereço, título SERVIÇOS, nome à esquerda/preço à direita, contraste e cores do tema, responsivo. Verificado via API+screenshot mobile."
   - task: "Correção do mini site público (cores/contraste/vídeo/áudio) + formulário de mídia (remover logomarca, crop) + pt-BR"
     implemented: true
     working: "NA"

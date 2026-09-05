@@ -1,0 +1,39 @@
+{
+  "summary": "Testei as 4 mudanças pedidas (Serviços no painel e no público, remoção do link de website duplicado no rodapé, remoção do botão 'Ligar agora', vídeo vertical com fundo desfocado / horizontal responsivo) + regressões (login/logout, proteção /admin, busca/filtros, QR Code, criar/editar/excluir, cores/contraste). Backend: 40/40 pytest passaram, incluindo nova suíte /app/backend/tests/test_servicos.py (create/update/reorder/limpar/public). Frontend: todos os requisitos das 4 mudanças passaram. ENCONTREI 1 BUG CRÍTICO NÃO RELACIONADO A SERVIÇOS (mas que quebra a edição): ao abrir 'Editar' de qualquer cliente com status 'Publicado', o Select de Status renderiza vazio e o form.status vira \"\"; ao salvar, o PUT envia status:\"\" e o cliente é DESPUBLICADO silenciosamente (mini site/QR desabilitados).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/clientes/{id}", "issue": "Aceita status arbitrário/vazio (ex.: status=\"\") sem validação — contribui para o bug de despublicação silenciosa. Sugestão: Literal['Rascunho','Publicado'] no modelo."},
+      {"endpoint": "POST /api/clientes", "issue": "Servico.nome tem default \"\" (não é obrigatório); serviço só com preço é aceito e persistido com nome vazio. O público filtra, então é cosmético, mas convém validar/limpar no backend."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin.jsx — Select de Status no formulário de edição", "issue": "CRÍTICO: ao editar cliente com status 'Publicado' o trigger [data-testid=field-status] fica VAZIO e o estado do form vai para \"\" (Radix Select dispara/perde o valor quando o value muda após a montagem para um item não registrado). Salvar sem tocar no campo envia PUT {status: \"\"} e o cliente é despublicado (badge 'Rascunho', 'Abrir mini site' e QR Code desabilitados). Reproduzido 3x: barbearia-servicos, studio-exemplo, test-serv-ui-1 mostram status vazio; padaria-do-bairro (Rascunho) mostra correto porque coincide com o default do EMPTY_FORM.", "selector": "[data-testid=\"field-status\"]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_servicos.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/cleanup_test_servicos.py"
+  ],
+  "action_items": [
+    "CRÍTICO: corrigir o Select de Status no formulário de edição (Admin.jsx ~linha 483). Opções: (a) remontar o form ao trocar de cliente com key={editing?.id || 'new'} no <NewClientView/>, e/ou (b) usar <SelectValue placeholder=\"Selecione\">{form.status}</SelectValue>, e/ou (c) guard no onValueChange ignorando valores vazios: onValueChange={(v)=> v && setForm(...)}. Depois validar: editar cliente Publicado sem tocar no Status deve manter 'Publicado'.",
+    "Defensivo no backend: validar status com Literal['Rascunho','Publicado'] (ou ignorar string vazia) em ClienteBase/ClienteUpdate para impedir despublicação por payload inválido."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx: handleSubmit envia o objeto 'form' inteiro (inclui id/created_at) no PUT; o backend ignora, mas seria melhor enviar apenas campos do modelo.",
+    "Admin.jsx tem ~1000 linhas — considerar extrair NewClientView/ServicosEditor/ClientsTable em arquivos próprios.",
+    "Servico.nome com default \"\" permite linhas sem nome; CardTemplate filtra (ok), mas o backend poderia descartar itens vazios ao salvar."
+  ],
+  "updated_files": ["/app/backend/tests/test_servicos.py", "/app/test_reports/cleanup_test_servicos.py"],
+  "success_rate": {"backend": "100% (40/40)", "frontend": "95% (todas as 4 mudanças OK; 1 bug crítico pré-existente no Select de Status na edição)"},
+  "seed_data_creation": "Criado e removido cliente de teste 'TEST_UI Servicos' (/c/test-serv-ui-1) via painel; clientes temporários test-serv-* criados/limpos pelos testes de API. Base final: 9 clientes originais com status e serviços intactos (barbearia-servicos com 3 serviços).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (senha inalterada)",
+  "context_for_next_testing_agent": "VERIFICADO OK: (1) /c/barbearia-servicos: card-services-section presente, título 'SERVIÇOS', 3 itens na ordem correta com nome à esquerda (x=41) e preço à direita (x=235+), posicionado após card-website-button (y 554) e antes de Endereço (y 848); footer sem <a>; card-call-button ausente; card-phone-link href tel:1130000000. (2) studio-exemplo e agencia-suporte-teste: sem seção e sem texto 'SERVIÇOS'. (3) /c/teste-video-vertical @390px: vídeo 360x640 renderizado 390x591 object-contain, card-cover-video-bg presente com blur(40px)/object-cover/opacity .6 e box 429px cobrindo as laterais; toggle de som funciona. (4) /c/teste-video-cabecalho @430px: 640x360 -> 430x242 (proporção correta), bg ausente, toggle mudo↔som ok, desktop 446x251. (5) Painel: servicos-editor, add x3, edição de nomes/preços, up-0/down-N desabilitados nas pontas, servico-up-1 e servico-down-0 reordenam, servico-remove-1 remove, salvar persiste; ao reabrir Editar os serviços vêm pré-preenchidos; remover todos e salvar limpa (servicos=[]). (6) Regressões OK: login, logout, proteção /admin, busca (1 de 10), filtro de status, QR dialog, excluir cliente. NÃO retestado nesta iteração: crop de imagem (image-crop-dialog) e upload de mídia via UI (coberto na iteração 9; upload validado por API em test_media.py). PRIORIDADE no próximo ciclo: revalidar o Select de Status na edição.",
+  "rca_of_the_issue": "Bug do Status: em NewClientView o form é montado com EMPTY_FORM (status 'Rascunho') e só depois o useEffect([editing]) aplica {...EMPTY_FORM, ...editing}. O Radix Select (2.2.2) está com SelectContent desmontado quando fechado; ao receber um novo value ('Publicado') após a montagem, ele não encontra o item registrado, exibe o trigger vazio e o estado controlado acaba em string vazia. Reprodução: /admin > Clientes > Editar em qualquer cliente 'Publicado' > o campo Status aparece vazio > clicar 'Salvar alterações' (sem tocar em nada) > PUT /api/clientes/{id} com {\"status\":\"\"} > cliente listado como 'Rascunho' e mini site/QR desabilitados. Mitigação: remontar o formulário por cliente (key={editing?.id}) ou fornecer children/placeholder ao SelectValue, além de ignorar valores vazios no onValueChange e validar status no backend."
+}

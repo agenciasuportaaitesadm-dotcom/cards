@@ -141,6 +141,12 @@ def get_object(path: str):
 
 
 # ---------------- Models ----------------
+class Servico(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    nome: str = ""
+    preco: Optional[str] = ""
+
+
 class ClienteBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -167,6 +173,7 @@ class ClienteBase(BaseModel):
     corFundo: Optional[str] = "#09090B"
     corBotoes: Optional[str] = "#6366F1"
     status: Optional[str] = "Rascunho"  # "Publicado" | "Rascunho"
+    servicos: Optional[List[Servico]] = []
 
 
 class Cliente(ClienteBase):
@@ -205,6 +212,7 @@ class ClienteUpdate(BaseModel):
     corFundo: Optional[str] = None
     corBotoes: Optional[str] = None
     status: Optional[str] = None
+    servicos: Optional[List[Servico]] = None
 
 
 def validate_slug(slug: str):

@@ -78,7 +78,7 @@ const CardTemplate = ({ data }) => {
   const coverImage = c.cover || "";
   const avatar = c.avatar || DEFAULT_AVATAR;
   const horario = parseHorario(c.horario);
-  const servicos = c.servicos || [];
+  const servicos = (c.servicos || []).filter((s) => s && (s.nome || s.preco));
 
   // ----- Cores derivadas do fundo (contraste automático) -----
   const darkBg = isDark(corFundo);
@@ -103,7 +103,6 @@ const CardTemplate = ({ data }) => {
     c.tiktok && { icon: Video, label: "TikTok", href: c.tiktok, testId: "card-tiktok-button" },
     c.website && { icon: Globe, label: "Website", href: c.website, testId: "card-website-button" },
     c.googleReviewUrl && { icon: Star, label: "Avaliar no Google", href: c.googleReviewUrl, testId: "card-google-review-button" },
-    c.telefone && { icon: Phone, label: "Ligar agora", href: `tel:${onlyDigits(c.telefone)}`, testId: "card-call-button" },
   ].filter(Boolean);
 
   const toggleMute = () => {
@@ -125,9 +124,21 @@ const CardTemplate = ({ data }) => {
         style={{ backgroundColor: corFundo, color: fg }}
       >
         {/* Cabeçalho (mídia) */}
-        <div className="relative w-full" style={{ backgroundColor: darkBg ? "#000" : "#0b0b0f" }}>
+        <div className="relative w-full overflow-hidden" style={{ backgroundColor: corFundo }}>
           {coverVideo && !videoFailed ? (
             <>
+              {portrait && (
+                <video
+                  src={coverVideo}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-hidden="true"
+                  data-testid="card-cover-video-bg"
+                  className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl"
+                />
+              )}
               <video
                 ref={videoRef}
                 src={coverVideo}
@@ -138,14 +149,14 @@ const CardTemplate = ({ data }) => {
                 onError={() => setVideoFailed(true)}
                 onLoadedMetadata={(e) => setPortrait(e.currentTarget.videoHeight > e.currentTarget.videoWidth)}
                 data-testid="card-cover-video"
-                className={`mx-auto block w-full object-contain ${portrait ? "max-h-[70vh]" : "max-h-[46vh]"}`}
+                className={`relative z-[1] mx-auto block w-full object-contain ${portrait ? "max-h-[70vh]" : "max-h-[46vh]"}`}
               />
               <button
                 type="button"
                 onClick={toggleMute}
                 aria-label={muted ? "Ativar som" : "Desativar som"}
                 data-testid="card-video-sound-toggle"
-                className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="absolute bottom-3 right-3 z-[2] flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-lg backdrop-blur transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 style={{ backgroundColor: corBotoes, color: btnFg, outlineColor: btnFg }}
               >
                 {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -190,13 +201,13 @@ const CardTemplate = ({ data }) => {
 
         {/* Serviços */}
         {servicos.length > 0 && (
-          <div className="mt-8 px-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: fgFaint }}>Serviços</h2>
+          <div className="mt-8 px-6" data-testid="card-services-section">
+            <h2 className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: fgFaint }}>SERVIÇOS</h2>
             <div className="mt-3 overflow-hidden rounded-2xl border" style={{ backgroundColor: surfaceBg, borderColor: surfaceBorder }}>
               {servicos.map((s, i) => (
-                <div key={s.titulo} className="flex items-center justify-between px-4 py-3" style={i ? { borderTop: `1px solid ${surfaceBorder}` } : undefined}>
-                  <span className="text-sm" style={{ color: fg }}>{s.titulo}</span>
-                  <span className="text-sm" style={{ color: fgMuted }}>{s.detalhe}</span>
+                <div key={i} data-testid={`card-service-${i}`} className="flex items-start justify-between gap-4 px-4 py-3" style={i ? { borderTop: `1px solid ${surfaceBorder}` } : undefined}>
+                  <span className="min-w-0 flex-1 break-words text-sm font-medium" style={{ color: fg }}>{s.nome}</span>
+                  {s.preco && <span className="flex-shrink-0 break-words text-right text-sm" style={{ color: fgMuted }}>{s.preco}</span>}
                 </div>
               ))}
             </div>
@@ -261,18 +272,7 @@ const CardTemplate = ({ data }) => {
 
         {/* Rodapé */}
         <footer className="mt-8 px-6 pb-8 pt-4 text-center">
-          {c.website && (
-            <a
-              href={c.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs hover:underline"
-              style={{ color: fgMuted }}
-            >
-              <Globe className="h-3.5 w-3.5" /> {c.website.replace(/^https?:\/\//, "")}
-            </a>
-          )}
-          <p className="mt-3 text-[11px]" style={{ color: fgFaint }}>Cartão digital por Digital Cards IA</p>
+          <p className="text-[11px]" style={{ color: fgFaint }}>Cartão digital por Digital Cards IA</p>
         </footer>
       </div>
     </div>
