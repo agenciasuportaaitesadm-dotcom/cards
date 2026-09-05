@@ -38,6 +38,7 @@ const PublicCard = () => {
       });
     return () => {
       active = false;
+      document.title = "Digital Cards IA — Cartões digitais profissionais";
     };
   }, [slug]);
 

@@ -53,6 +53,3 @@ export const shade = (hex, amount) => {
   const toHex = (v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0");
   return `#${toHex(adj(r))}${toHex(adj(g))}${toHex(adj(b))}`;
 };
-
-// Variação de hover acessível (mantém contraste, muda leve o tom).
-export const hoverShade = (hex) => (isDark(hex) ? shade(hex, 0.16) : shade(hex, -0.12));

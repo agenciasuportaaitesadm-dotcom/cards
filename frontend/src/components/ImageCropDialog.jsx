@@ -36,7 +36,7 @@ const ImageCropDialog = ({ open, src, aspect = 1, shape = "rect", title, onCance
       onCancel();
     };
     img.src = src;
-  }, [open, src, onCancel]);
+  }, [open, src]);
 
   const reset = () => {
     setCrop({ x: 0, y: 0 });

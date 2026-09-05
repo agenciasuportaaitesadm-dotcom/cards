@@ -1,0 +1,47 @@
+{
+  "summary": "Rodada de VERIFICAÇÃO FINAL (frontend only, backend não re-testado). Executados 5 blocos: (1) uniformidade de cor dos 9 elementos .dc-action MEDIDA SEM HOVER (mouse movido para 0,0 antes de medir) em 3 temas + hover real no MESMO elemento + contraste; (2) diálogo de CROP em /admin > Novo cliente (perfil round 1:1, capa rect 3:2, vídeo webm sem crop, cancelar, ausência de upload de Logo); (3) regressão completa (som do vídeo webm landscape+portrait, avatar circular abaixo da mídia, nome preservado, criar/editar/excluir cliente, busca, filtro de status, limpar filtros, QR Code, login/logout, proteção de /admin); (4) mobile 390px (cartão público, form de mídia e diálogo de crop sem overflow horizontal); (5) SEO pt-BR + restauração do título ao navegar para /admin. Resultado: 74/74 asserções PASS. O achado anterior de '2 cores distintas' NÃO se reproduz — era mesmo medição com um botão em :hover. Nenhum bug funcional encontrado; apenas 2 observações menores de design.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Cartão público - hover dos botões (.dc-action) em temas com cor quase-branca ou quase-preta",
+        "issues": [
+          "Tema botão #F5F5F5: hover muda de rgb(245,245,245) para rgb(247,247,247) — variação de ~1%, praticamente imperceptível como feedback visual.",
+          "Tema botão #141420: hover muda de rgb(20,20,32) para rgb(17,17,28) — também quase imperceptível. Sugestão: usar delta mínimo absoluto (ex.: clamp de pelo menos ~6-8% de luminância) ou combinar com leve mudança de sombra/escala para o feedback ser perceptível em cores extremas. (No tema #E11D2A o hover está ótimo: 225,29,42 -> 194,25,36, contraste sobe de 4.76 para 6.07.)"
+        ]
+      },
+      {
+        "screen": "/admin > Novo cliente > Mídia > Foto de perfil (preview)",
+        "issues": [
+          "O preview após o crop redondo (upload-profile-preview-image) é renderizado como retângulo largo (h-40 w-full object-cover), então o admin não vê o enquadramento circular real que aparecerá no cartão. Sugestão: renderizar o preview de perfil como círculo (rounded-full, aspect-square) para refletir o resultado final."
+        ]
+      },
+      {
+        "screen": "/admin > Clientes em 390px",
+        "issues": [
+          "A tabela de clientes tem largura interna 461px e depende de scroll horizontal dentro do contêiner (o documento em si NÃO tem overflow: scrollWidth == clientWidth == 390, portanto o requisito passa). Apenas nota de UX: um layout em cards no mobile evitaria o scroll interno."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Opcional (design): aumentar o delta do hover para cores de botão extremas (quase branco / quase preto) — hoje o feedback é ~1% e quase invisível.",
+    "Opcional (design): exibir o preview da foto de perfil no admin em formato circular para refletir o crop redondo.",
+    "Nenhuma correção funcional pendente: os 5 itens solicitados nesta rodada passaram 100%."
+  ],
+  "critical_code_review_comments": [
+    "CardTemplate.jsx: btnHover = shade(cor, ±) sem piso mínimo de variação — para #F5F5F5/#141420 o resultado difere em 2-3 unidades RGB. Considerar Math.max de delta ou fallback para mix com a cor de texto.",
+    "ImageCropDialog.jsx: handleConfirm faz early-return silencioso quando !areaPixels; hoje o botão fica desabilitado nesse estado (comportamento aceitável) e o onerror já dispara toast + cancel, resolvendo o achado LOW da iteração 8."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (skipped per request)", "frontend": "100% (74/74 asserções)" },
+  "seed_data_creation": "Cliente temporário 'TEST QA It9' (slug teste-qa-it9) criado, editado para 'TEST QA It9 Editado' e EXCLUÍDO no fim do teste (nenhum resíduo). Uploads de mídia de teste feitos via /api/media/upload em formulários não salvos (arquivos órfãos em uploads/, sem impacto). Arquivos locais: /tmp/test_crop.jpg (JPEG 1200x800 real) e /tmp/upload_test.webm (VP8 640x360 2s).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (token localStorage dc_admin_token) — funcionando",
+  "context_for_next_testing_agent": "Detalhes verificados nesta rodada: (a) UNIFORMIDADE — 9 .dc-action por página (card-whatsapp/location/instagram/facebook/tiktok/website/google-review/call-button + card-address-maps-button); SEMPRE fazer page.mouse.move(0,0) + wait 500ms antes de medir background-color, senão um botão fica em :hover e parece haver 2 cores. Valores medidos: /c/agencia-suporte-teste = rgb(225,29,42) (contraste 4.76 branco), /c/teste-claro-botao-escuro = rgb(20,20,32) (18.25), /c/teste-escuro-botao-claro = rgb(245,245,245) (18.02). Hover: 225,29,42->194,25,36 (6.07); 20,20,32->17,17,28; 245,245,245->247,247,247; todos revertem ao sair. (b) TESTIDS CORRETOS do admin (não são admin-nome-input/admin-search-input): field-nome, field-slug, field-whatsapp, field-status, clients-search-input, clients-search-clear, clients-status-filter, clients-clear-filters, clients-filter-count, clients-new-client-button, overview-new-client-button, client-row-<slug>, client-edit-<slug>, client-delete-<slug>, client-qrcode-<slug>, client-qrcode-disabled-<slug> (quando Rascunho), delete-confirm-dialog/delete-confirm-button, qrcode-dialog/qrcode-image/qrcode-url/qrcode-close-button, admin-save-client-button, admin-logout-button. (c) Uploads: use JPEG real (/tmp/test_crop.jpg) — PNG degenerado deixa image-crop-confirm desabilitado; vídeo deve ser WEBM (Chromium não decodifica MP4/H.264). Após abrir o crop, arraste na image-crop-area (ou mexa no slider) para onCropComplete disparar e habilitar o confirm. (d) SEO: lang=pt-BR, title 'Agência Suporte | Cartão digital', description 'Marketing digital para pequenos negócios.'; ao ir para /admin o título volta a 'Digital Cards IA — Cartões digitais profissionais'. (e) Mobile 390px: documento sem overflow em /c/* , /admin, new-client-form e image-crop-dialog (dialog x=0 w=390).",
+  "rca_of_the_issue": "Falso positivo da iteração 8 ('2 backgrounds distintos'): a medição percorria os .dc-action logo após uma interação/hover do Playwright, então o elemento sob o cursor retornava var(--btn-hover) em vez de var(--btn). Com page.mouse.move(0,0) + espera antes da leitura, os 9 botões retornam exatamente a mesma cor nos 3 temas. Também confirmado que o hover agora ESCURECE o vermelho (shade -0.14 para texto branco), corrigindo a queda de contraste de 4.76->3.97 reportada antes (agora 4.76->6.07)."
+}
