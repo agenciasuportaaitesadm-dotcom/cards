@@ -53,3 +53,13 @@ export const shade = (hex, amount) => {
   const toHex = (v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0");
   return `#${toHex(adj(r))}${toHex(adj(g))}${toHex(adj(b))}`;
 };
+
+// Mistura fg sobre bg com alpha (simula transparência) e retorna hex sólido.
+export const blendOver = (fgHex, bgHex, alpha) => {
+  const f = hexToRgb(fgHex);
+  const b = hexToRgb(bgHex);
+  const a = Math.max(0, Math.min(1, alpha));
+  const mix = (cf, cb) => Math.round(cf * a + cb * (1 - a));
+  const toHex = (v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0");
+  return `#${toHex(mix(f.r, b.r))}${toHex(mix(f.g, b.g))}${toHex(mix(f.b, b.b))}`;
+};

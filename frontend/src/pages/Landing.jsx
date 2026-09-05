@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import axios from "axios";
 import {
   MessageCircle,
   MapPin,
@@ -25,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { studioExemplo } from "@/data/mockData";
 
-const WHATSAPP_CONTATO = "5511990000000";
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const beneficios = [
   {
@@ -57,69 +58,80 @@ const cardBotoes = [
   { label: "Avaliar no Google", icon: Star },
 ];
 
-const PhoneMockup = () => (
-  <div className="relative mx-auto w-[300px] rounded-[42px] border-[10px] border-slate-900 bg-slate-900 shadow-2xl shadow-indigo-900/20">
-    <div className="absolute left-1/2 top-0 z-20 h-6 w-32 -translate-x-1/2 rounded-b-2xl bg-slate-900" />
-    <div className="relative overflow-hidden rounded-[32px] bg-[#09090B]">
-      <div className="relative h-28 w-full">
-        <img
-          src={studioExemplo.cover}
-          alt="Capa"
-          className="h-full w-full object-cover opacity-90"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] to-transparent" />
-      </div>
-      <div className="-mt-9 flex flex-col items-center px-5 pb-6">
-        <img
-          src={studioExemplo.avatar}
-          alt="Perfil"
-          className="h-16 w-16 rounded-2xl border-2 border-[#09090B] object-cover shadow-lg"
-        />
-        <h4 className="font-heading mt-3 text-base font-bold text-white">
-          {studioExemplo.nome}
-        </h4>
-        <p className="mt-1 text-center text-[11px] leading-snug text-zinc-400">
-          Estúdio de beleza e estética avançada.
-        </p>
-        <div className="mt-4 w-full space-y-2">
-          {cardBotoes.map((b) => (
-            <div
-              key={b.label}
-              className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#18181B] px-3 py-2.5"
-            >
-              <b.icon className="h-4 w-4 text-indigo-400" strokeWidth={2} />
-              <span className="text-[13px] font-medium text-zinc-100">{b.label}</span>
-            </div>
-          ))}
+const PhoneMockup = ({ demo }) => {
+  const cover = demo?.headerUrl || studioExemplo.cover;
+  const avatar = demo?.profileUrl || studioExemplo.avatar;
+  const nome = demo?.nome || studioExemplo.nome;
+  const descricao = demo?.descricao || "Estúdio de beleza e estética avançada.";
+  return (
+    <div className="relative mx-auto w-[300px] rounded-[42px] border-[10px] border-slate-900 bg-slate-900 shadow-2xl shadow-indigo-900/20">
+      <div className="absolute left-1/2 top-0 z-20 h-6 w-32 -translate-x-1/2 rounded-b-2xl bg-slate-900" />
+      <div className="relative overflow-hidden rounded-[32px] bg-[#09090B]">
+        <div className="relative h-28 w-full">
+          <img src={cover} alt="Capa" className="h-full w-full object-cover opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] to-transparent" />
+        </div>
+        <div className="-mt-10 flex flex-col items-center px-5 pb-6">
+          <img
+            src={avatar}
+            alt="Foto de perfil"
+            data-testid="landing-preview-avatar"
+            className="h-20 w-20 rounded-full border-4 border-[#09090B] object-cover shadow-lg"
+          />
+          <h4 className="font-heading mt-3 text-base font-bold text-white">{nome}</h4>
+          <p className="mt-1 text-center text-[11px] leading-snug text-zinc-400">{descricao}</p>
+          <div className="mt-4 w-full space-y-2">
+            {cardBotoes.map((b) => (
+              <div
+                key={b.label}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#18181B] px-3 py-2.5"
+              >
+                <b.icon className="h-4 w-4 text-indigo-400" strokeWidth={2} />
+                <span className="text-[13px] font-medium text-zinc-100">{b.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Landing = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", empresa: "", whatsapp: "", mensagem: "" });
+  const [form, setForm] = useState({ nome: "", empresa: "", email: "", whatsapp: "", mensagem: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [demo, setDemo] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/public/demo`).then((r) => setDemo(r.data)).catch(() => {});
+  }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nome || !form.whatsapp) {
+    if (!form.nome.trim() || !form.whatsapp.trim()) {
       toast.error("Preencha ao menos nome e WhatsApp.");
       return;
     }
-    toast.success("Recebemos seu interesse! Em breve entraremos em contato.");
-    setForm({ nome: "", empresa: "", whatsapp: "", mensagem: "" });
-  };
-
-  const abrirWhatsApp = () => {
-    window.open(
-      `https://wa.me/${WHATSAPP_CONTATO}?text=${encodeURIComponent(
-        "Olá! Tenho interesse em criar meu cartão digital com a Digital Cards IA."
-      )}`,
-      "_blank"
-    );
+    setSubmitting(true);
+    try {
+      await axios.post(`${API}/leads`, {
+        nome: form.nome,
+        empresa: form.empresa,
+        email: form.email,
+        telefone: form.whatsapp,
+        mensagem: form.mensagem,
+        origem: "landing_fale_conosco",
+      });
+      toast.success("Recebemos seu contato! Em breve entraremos em contato.");
+      setForm({ nome: "", empresa: "", email: "", whatsapp: "", mensagem: "" });
+    } catch {
+      toast.error("Não foi possível enviar agora. Tente novamente em instantes.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -127,7 +139,8 @@ const Landing = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <a href="/" data-testid="landing-logo" className="font-heading text-lg font-extrabold tracking-tight">
+          <a href="/" data-testid="landing-logo" className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight">
+            <img src="/brand-icon.png" alt="Digital Cards IA" className="h-8 w-8 object-contain" />
             Digital Cards<span className="text-indigo-600">.IA</span>
           </a>
           <nav className="hidden items-center gap-8 md:flex">
@@ -195,7 +208,7 @@ const Landing = () => {
             className="flex justify-center lg:col-span-5 lg:justify-end"
             data-testid="hero-phone-mockup"
           >
-            <PhoneMockup />
+            <PhoneMockup demo={demo} />
           </motion.div>
         </div>
       </section>
@@ -302,6 +315,10 @@ const Landing = () => {
                 <Input data-testid="form-input-empresa" id="empresa" name="empresa" value={form.empresa} onChange={handleChange} placeholder="Nome do negócio" />
               </div>
               <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input data-testid="form-input-email" id="email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="voce@email.com" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="whatsapp">WhatsApp</Label>
                 <Input data-testid="form-input-whatsapp" id="whatsapp" name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="(11) 99999-9999" />
               </div>
@@ -310,17 +327,9 @@ const Landing = () => {
                 <Textarea data-testid="form-input-mensagem" id="mensagem" name="mensagem" value={form.mensagem} onChange={handleChange} placeholder="Conte um pouco sobre o seu negócio" rows={4} />
               </div>
             </div>
-            <Button data-testid="interest-form-submit-button" type="submit" className="mt-6 h-12 w-full rounded-full bg-indigo-600 text-base hover:bg-indigo-700">
-              Enviar mensagem de interesse
+            <Button data-testid="interest-form-submit-button" type="submit" disabled={submitting} className="mt-6 h-12 w-full rounded-full bg-indigo-600 text-base hover:bg-indigo-700">
+              {submitting ? "Enviando..." : "Enviar mensagem de interesse"}
             </Button>
-            <button
-              type="button"
-              data-testid="whatsapp-contact-button"
-              onClick={abrirWhatsApp}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border border-[#25D366]/30 bg-[#25D366]/10 py-3 text-sm font-semibold text-[#128C3E] transition-colors hover:bg-[#25D366]/20"
-            >
-              <MessageCircle className="h-4 w-4" /> Falar direto no WhatsApp
-            </button>
           </form>
         </div>
       </section>
@@ -328,7 +337,7 @@ const Landing = () => {
       {/* Rodapé */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-8 sm:flex-row sm:px-6 lg:px-8">
-          <p className="font-heading text-sm font-bold">Digital Cards<span className="text-indigo-600">.IA</span></p>
+          <p className="flex items-center gap-2 font-heading text-sm font-bold"><img src="/brand-icon.png" alt="" className="h-6 w-6 object-contain" />Digital Cards<span className="text-indigo-600">.IA</span></p>
           <div className="flex flex-col items-center gap-1 sm:items-end">
             <p className="text-xs text-slate-400">© 2026 Digital Cards IA. Todos os direitos reservados.</p>
             <Link

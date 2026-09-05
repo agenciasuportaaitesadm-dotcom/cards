@@ -30,6 +30,7 @@ SaaS (PT-BR) para criação e gerenciamento de cartões digitais profissionais. 
 - 2026-06: **Correção do mini site público + formulário de mídia**: (1) botão único reutilizável `.dc-action` — todos os botões usam a cor do tema no fundo/borda/hover/foco; (2) contraste automático (WCAG) de texto/ícone para botões e textos do card; (3) vídeo de cabeçalho `object-contain` vertical/horizontal sem cortar/deformar; (4) botão de som (mudo/som) funcional, autoplay muted; (5) logomarca removida do form/template/pública (perfil e cabeçalho preservados); (6) foto de perfil circular abaixo da mídia sem sobrepor; (7) crop/zoom/reposição (react-easy-crop) antes de enviar perfil (1:1) e capa (3:2), enviando imagem já enquadrada ao endpoint existente; (8) nome preservado + SEO pt-BR no mini site (lang/title/description). Testado (32 pytest + 74/74 asserções UI, 3 temas, desktop e mobile).
 
 ## Backlog (prioridade)
+- P2: DELETE /api/leads/{id} para limpeza; validação backend de lead (nome+telefone).
 - P2: Aba "Aparência" funcional (tema padrão para novos cartões).
 - P2: Soft-delete de arquivos órfãos; StreamingResponse para vídeos grandes.
 - P2: Exibir nome original do arquivo (parcialmente feito) e refatorar Admin.jsx/server.py em módulos.

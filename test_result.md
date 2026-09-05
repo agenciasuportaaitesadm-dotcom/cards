@@ -103,6 +103,17 @@
 #====================================================================================================
 
 frontend:
+  - task: "Rodada 7-em-1: landing (logo/avatar/lead/sem WhatsApp) + Leads + Demo editável + botões personalizados + opacidade + fix Select Status"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py, frontend/src/pages/Landing.jsx, frontend/src/pages/Admin.jsx, frontend/src/components/CardTemplate.jsx, frontend/src/pages/DemoCard.jsx, frontend/src/lib/themeContrast.js, frontend/public/index.html"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Implementado em 1 rodada: (1) landing preview com avatar via GET /api/public/demo; (2) ícone da marca /brand-icon.png no logo (header/footer) e favicon; (3) formulário Fale Conosco salva lead (POST /api/leads) com toast pt-BR, mantém dados em erro; nova aba Leads (GET /api/leads, PATCH status Novo/Em contato/Concluído, recentes primeiro); (4) botão WhatsApp abaixo do form removido; (5) aba 'Mini site demo' edita config demo (GET public/PUT auth /api/demo) reutilizando o editor; (6) botões personalizados por cliente/demo (label/url/cor/ordem, add/edit/excluir/reordenar, URL sanitizada) refletidos no público; (7) slider de opacidade dos botões (0.2-1) por cliente aplicado a todos os botões com contraste automático via blendOver; FIX CRÍTICO do Select de Status (key remount + guard onValueChange v && ...) impedindo despublicação silenciosa. Backend defensivo: ignora status vazio no PUT. Backend 40/40 pytest + endpoints validados por curl."
   - task: "Ajustes mini site (vídeo vertical blur, remover website duplicado, remover Ligar agora) + seção Serviços (CRUD/reorder)"
     implemented: true
     working: "NA"

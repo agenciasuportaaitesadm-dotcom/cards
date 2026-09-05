@@ -33,6 +33,8 @@ import {
   ArrowUp,
   ArrowDown,
   ListChecks,
+  Inbox,
+  MonitorSmartphone,
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 import { toast } from "sonner";
@@ -57,6 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import {
   Table,
   TableBody,
@@ -96,6 +99,8 @@ const NAV = [
   { id: "overview", label: "Visão geral", icon: LayoutDashboard, testId: "admin-nav-overview" },
   { id: "clients", label: "Clientes", icon: Users, testId: "admin-nav-clients" },
   { id: "new-client", label: "Novo cliente", icon: UserPlus, testId: "admin-nav-new-client" },
+  { id: "leads", label: "Leads", icon: Inbox, testId: "admin-nav-leads" },
+  { id: "demo", label: "Mini site demo", icon: MonitorSmartphone, testId: "admin-nav-demo" },
   { id: "appearance", label: "Aparência", icon: Palette, testId: "admin-nav-appearance" },
   { id: "settings", label: "Configurações", icon: Settings, testId: "admin-nav-settings" },
 ];
@@ -104,7 +109,7 @@ const EMPTY_FORM = {
   nome: "", slug: "", descricao: "", telefone: "", whatsapp: "", endereco: "",
   mapsUrl: "", horario: "", instagram: "", facebook: "", tiktok: "", website: "",
   googleReviewUrl: "", seoTitle: "", seoDesc: "", seoKeywords: "",
-  servicos: [],
+  servicos: [], botoesPersonalizados: [], corBotoesOpacidade: 1,
   logoUrl: "", profileUrl: "", headerUrl: "", headerType: "",
   corFundo: "#09090B", corBotoes: "#6366F1", status: "Rascunho",
 };
@@ -411,6 +416,121 @@ const ServicosEditor = ({ servicos, onChange }) => {
   );
 };
 
+const BotoesEditor = ({ botoes, onChange }) => {
+  const list = botoes || [];
+  const update = (i, key, val) => onChange(list.map((b, idx) => (idx === i ? { ...b, [key]: val } : b)));
+  const add = () => onChange([...list, { label: "", url: "", cor: "#6366F1" }]);
+  const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const c = [...list];
+    [c[i], c[j]] = [c[j], c[i]];
+    onChange(c);
+  };
+  return (
+    <div className="space-y-3" data-testid="botoes-editor">
+      {list.length === 0 && (
+        <p className="text-sm text-slate-400" data-testid="botoes-empty">Nenhum botão personalizado. Clique em "Adicionar botão".</p>
+      )}
+      {list.map((b, i) => (
+        <div key={i} data-testid={`botao-row-${i}`} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Input data-testid={`botao-label-${i}`} value={b.label || ""} onChange={(e) => update(i, "label", e.target.value)} placeholder="Texto do botão (ex.: Cardápio)" className="flex-1 bg-white" />
+            <Input data-testid={`botao-url-${i}`} value={b.url || ""} onChange={(e) => update(i, "url", e.target.value)} placeholder="https://..." className="flex-1 bg-white" />
+          </div>
+          <div className="flex items-center gap-3">
+            <input type="color" data-testid={`botao-cor-${i}`} value={b.cor || "#6366F1"} onChange={(e) => update(i, "cor", e.target.value)} className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" />
+            <span className="text-xs text-slate-500">Cor de destaque</span>
+            <div className="ml-auto flex items-center gap-1">
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9" data-testid={`botao-up-${i}`} onClick={() => move(i, -1)} disabled={i === 0} aria-label="Mover para cima"><ArrowUp className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9" data-testid={`botao-down-${i}`} onClick={() => move(i, 1)} disabled={i === list.length - 1} aria-label="Mover para baixo"><ArrowDown className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600" data-testid={`botao-remove-${i}`} onClick={() => remove(i)} aria-label="Remover botão"><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" className="rounded-full" data-testid="botoes-add-button" onClick={add}><Plus className="mr-2 h-4 w-4" /> Adicionar botão</Button>
+    </div>
+  );
+};
+
+const LEAD_STATUS_OPTIONS = ["Novo", "Em contato", "Concluído"];
+
+const LeadsView = ({ onLogout }) => {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/leads`);
+      setLeads(r.data);
+    } catch (e) {
+      if (e?.response?.status === 401) return onLogout();
+      toast.error("Não foi possível carregar os leads.");
+    } finally {
+      setLoading(false);
+    }
+  }, [onLogout]);
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  const changeStatus = async (id, status) => {
+    try {
+      await axios.patch(`${API}/leads/${id}/status`, { status });
+      setLeads((l) => l.map((x) => (x.id === id ? { ...x, status } : x)));
+      toast.success("Status atualizado.");
+    } catch {
+      toast.error("Não foi possível atualizar o status.");
+    }
+  };
+  const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR"); } catch { return iso; } };
+  const badge = (s) => (s === "Concluído" ? "bg-emerald-50 text-emerald-700" : s === "Em contato" ? "bg-amber-50 text-amber-700" : "bg-indigo-50 text-indigo-700");
+
+  return (
+    <div data-testid="leads-view">
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">Leads / Contatos</h1>
+        <p className="mt-1 text-sm text-slate-500">Mensagens recebidas pelo formulário "Fale Conosco". Mais recentes primeiro.</p>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-16 text-slate-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : leads.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-400" data-testid="leads-empty">Nenhum lead recebido ainda.</div>
+      ) : (
+        <div className="space-y-4">
+          {leads.map((l) => (
+            <div key={l.id} data-testid={`lead-row-${l.id}`} className="rounded-xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-heading font-semibold text-slate-900" data-testid={`lead-nome-${l.id}`}>{l.nome || "(sem nome)"}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge(l.status)}`} data-testid={`lead-status-badge-${l.id}`}>{l.status}</span>
+                  </div>
+                  {l.empresa && <p className="text-sm text-slate-500">{l.empresa}</p>}
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
+                    {l.telefone && <span data-testid={`lead-telefone-${l.id}`}>Tel/WhatsApp: {l.telefone}</span>}
+                    {l.email && <span>E-mail: {l.email}</span>}
+                  </div>
+                  {l.mensagem && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{l.mensagem}</p>}
+                  <p className="mt-2 text-xs text-slate-400">{fmt(l.createdAt)} · origem: {l.origem}</p>
+                </div>
+                <div className="sm:w-44">
+                  <Select value={l.status} onValueChange={(v) => v && changeStatus(l.id, v)}>
+                    <SelectTrigger data-testid={`lead-status-select-${l.id}`}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {LEAD_STATUS_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FormSection = ({ icon: Icon, title, description, children }) => (
   <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
     <div className="mb-6 flex items-start gap-3">
@@ -426,35 +546,45 @@ const FormSection = ({ icon: Icon, title, description, children }) => (
   </section>
 );
 
-const NewClientView = ({ editing, onSaved, onCancel }) => {
+const NewClientView = ({ editing, onSaved, onCancel, mode = "client" }) => {
+  const isDemo = mode === "demo";
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (editing) setForm({ ...EMPTY_FORM, ...editing });
-    else setForm(EMPTY_FORM);
-  }, [editing]);
+    if (isDemo) {
+      axios.get(`${API}/public/demo`).then((r) => setForm({ ...EMPTY_FORM, ...r.data })).catch(() => setForm(EMPTY_FORM));
+    } else if (editing) {
+      setForm({ ...EMPTY_FORM, ...editing });
+    } else {
+      setForm(EMPTY_FORM);
+    }
+  }, [editing, isDemo]);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nome.trim()) return toast.error("Informe o nome do negócio.");
-    if (!SLUG_REGEX.test(form.slug)) {
+    if (!isDemo && !SLUG_REGEX.test(form.slug)) {
       return toast.error("Slug inválido. Use apenas letras minúsculas, números e hífens.");
     }
+    const payload = { ...form, botoesPersonalizados: (form.botoesPersonalizados || []).map((b, i) => ({ ...b, ordem: i })) };
     setSaving(true);
     try {
-      if (editing) {
-        await axios.put(`${API}/clientes/${editing.id}`, form);
+      if (isDemo) {
+        await axios.put(`${API}/demo`, payload);
+        toast.success("Mini site demonstrativo atualizado.");
+      } else if (editing) {
+        await axios.put(`${API}/clientes/${editing.id}`, payload);
         toast.success("Cliente atualizado com sucesso.");
       } else {
-        await axios.post(`${API}/clientes`, form);
+        await axios.post(`${API}/clientes`, payload);
         toast.success("Cliente criado com sucesso.");
       }
       onSaved();
     } catch (err) {
-      toast.error(formatError(err?.response?.data?.detail, "Não foi possível salvar o cliente."));
+      toast.error(formatError(err?.response?.data?.detail, "Não foi possível salvar."));
     } finally {
       setSaving(false);
     }
@@ -464,10 +594,12 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
     <div>
       <div className="mb-8">
         <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">
-          {editing ? `Editar: ${editing.nome}` : "Novo cliente"}
+          {isDemo ? "Mini site demonstrativo" : editing ? `Editar: ${editing.nome}` : "Novo cliente"}
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Preencha as informações do cartão digital. Os dados são salvos no banco de dados.
+          {isDemo
+            ? "Este é o exemplo exibido na landing page. As alterações são carregadas automaticamente na home."
+            : "Preencha as informações do cartão digital. Os dados são salvos no banco de dados."}
         </p>
       </div>
 
@@ -480,7 +612,7 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
               <Field label="Descrição curta" id="descricao"><Textarea data-testid="field-descricao" id="descricao" value={form.descricao} onChange={set("descricao")} rows={3} placeholder="Uma frase curta sobre o negócio" /></Field>
             </div>
             <Field label="Status" id="status">
-              <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
+              <Select value={form.status || "Rascunho"} onValueChange={(v) => v && setForm((f) => ({ ...f, status: v }))}>
                 <SelectTrigger data-testid="field-status"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Rascunho">Rascunho</SelectItem>
@@ -512,6 +644,11 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
                 <Input value={form.corBotoes} onChange={set("corBotoes")} className="font-mono" />
               </div>
             </Field>
+            <div className="sm:col-span-2">
+              <Label className="text-sm font-medium text-slate-700">Opacidade dos botões: {Math.round((form.corBotoesOpacidade ?? 1) * 100)}%</Label>
+              <Slider data-testid="field-opacidade" value={[form.corBotoesOpacidade ?? 1]} min={0.2} max={1} step={0.05} onValueChange={(v) => setForm((f) => ({ ...f, corBotoesOpacidade: v[0] }))} className="mt-3" />
+              <p className="mt-1 text-xs text-slate-400">Aplica-se a todos os botões (padrão e personalizados). O texto mantém contraste automático.</p>
+            </div>
           </div>
         </FormSection>
 
@@ -528,6 +665,10 @@ const NewClientView = ({ editing, onSaved, onCancel }) => {
 
         <FormSection icon={ListChecks} title="Serviços" description="Lista opcional exibida no cartão, após os botões e antes do endereço.">
           <ServicosEditor servicos={form.servicos} onChange={(v) => setForm((f) => ({ ...f, servicos: v }))} />
+        </FormSection>
+
+        <FormSection icon={Link2} title="Botões personalizados" description="Botões extras além dos padrão. Ordem e cor são refletidas na página pública.">
+          <BotoesEditor botoes={form.botoesPersonalizados} onChange={(v) => setForm((f) => ({ ...f, botoesPersonalizados: v }))} />
         </FormSection>
 
         <FormSection icon={MapPin} title="Informações locais" description="Contato, endereço e funcionamento.">
@@ -982,8 +1123,10 @@ const Dashboard = ({ user, onLogout }) => {
         )}
 
         {active === "new-client" && (
-          <NewClientView editing={editing} onSaved={handleSaved} onCancel={() => go("clients")} />
+          <NewClientView key={editing?.id || "new"} editing={editing} onSaved={handleSaved} onCancel={() => go("clients")} />
         )}
+        {active === "leads" && <LeadsView onLogout={onLogout} />}
+        {active === "demo" && <NewClientView key="demo" mode="demo" onSaved={() => {}} onCancel={() => go("overview")} />}
         {active === "appearance" && <PlaceholderView testId="appearance-view" icon={Palette} title="Aparência" description="Temas e estilos globais dos cartões." />}
         {active === "settings" && <SecurityView onLogout={onLogout} />}
       </main>

@@ -147,6 +147,44 @@ class Servico(BaseModel):
     preco: Optional[str] = ""
 
 
+class BotaoPersonalizado(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    label: str = ""
+    url: str = ""
+    cor: Optional[str] = ""
+    ordem: Optional[int] = 0
+
+
+class Lead(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nome: Optional[str] = ""
+    empresa: Optional[str] = ""
+    email: Optional[str] = ""
+    telefone: Optional[str] = ""
+    mensagem: Optional[str] = ""
+    origem: Optional[str] = "landing"
+    status: str = "Novo"
+    createdAt: str = Field(default_factory=now_iso)
+
+
+class LeadCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    nome: Optional[str] = ""
+    empresa: Optional[str] = ""
+    email: Optional[str] = ""
+    telefone: Optional[str] = ""
+    mensagem: Optional[str] = ""
+    origem: Optional[str] = "landing"
+
+
+class LeadStatusUpdate(BaseModel):
+    status: str
+
+
+LEAD_STATUSES = {"Novo", "Em contato", "Concluído"}
+
+
 class ClienteBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -174,6 +212,8 @@ class ClienteBase(BaseModel):
     corBotoes: Optional[str] = "#6366F1"
     status: Optional[str] = "Rascunho"  # "Publicado" | "Rascunho"
     servicos: Optional[List[Servico]] = []
+    botoesPersonalizados: Optional[List[BotaoPersonalizado]] = []
+    corBotoesOpacidade: Optional[float] = 1.0
 
 
 class Cliente(ClienteBase):
@@ -213,6 +253,8 @@ class ClienteUpdate(BaseModel):
     corBotoes: Optional[str] = None
     status: Optional[str] = None
     servicos: Optional[List[Servico]] = None
+    botoesPersonalizados: Optional[List[BotaoPersonalizado]] = None
+    corBotoesOpacidade: Optional[float] = None
 
 
 def validate_slug(slug: str):
@@ -349,6 +391,9 @@ async def update_cliente(cliente_id: str, payload: ClienteUpdate, _user: dict = 
         raise HTTPException(status_code=404, detail="Cliente não encontrado.")
 
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    # Defensivo: nunca despublicar por status vazio vindo do formulário.
+    if updates.get("status") == "":
+        updates.pop("status", None)
 
     if "slug" in updates:
         validate_slug(updates["slug"])
@@ -375,6 +420,83 @@ async def get_public_cliente(slug: str):
     doc = await db.clientes.find_one({"slug": slug}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Página não encontrada.")
+    return doc
+
+
+# ---------------- Leads / Demo ----------------
+DEMO_DEFAULT = {
+    "nome": "Studio Exemplo",
+    "descricao": "Estúdio de beleza e estética avançada. Atendimento personalizado com hora marcada.",
+    "telefone": "(11) 4000-0000",
+    "whatsapp": "5511990000000",
+    "endereco": "Av. Paulista, 1000 — Bela Vista, São Paulo/SP",
+    "mapsUrl": "https://maps.google.com/?q=Av.+Paulista+1000+Sao+Paulo",
+    "horario": "Segunda a Sexta: 09:00 — 19:00\nSábado: 09:00 — 16:00\nDomingo: Fechado",
+    "instagram": "https://instagram.com/studioexemplo",
+    "facebook": "https://facebook.com/studioexemplo",
+    "tiktok": "",
+    "website": "https://studioexemplo.com.br",
+    "googleReviewUrl": "https://g.page/r/exemplo/review",
+    "profileUrl": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&w=400&q=80",
+    "headerUrl": "https://images.pexels.com/photos/13068380/pexels-photo-13068380.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "headerType": "image",
+    "corFundo": "#121215",
+    "corBotoes": "#6366F1",
+    "corBotoesOpacidade": 1.0,
+    "servicos": [
+        {"nome": "Corte & Escova", "preco": "A partir de R$ 80"},
+        {"nome": "Coloração", "preco": "A partir de R$ 150"},
+        {"nome": "Design de Sobrancelhas", "preco": "A partir de R$ 45"},
+    ],
+    "botoesPersonalizados": [],
+}
+
+
+@api_router.post("/leads", status_code=201)
+async def create_lead(payload: LeadCreate):
+    lead = Lead(**payload.model_dump())
+    await db.leads.insert_one(lead.model_dump())
+    return {"message": "Recebemos seu contato! Em breve retornaremos.", "id": lead.id}
+
+
+@api_router.get("/leads", response_model=List[Lead])
+async def list_leads(_user: dict = Depends(require_auth)):
+    docs = await db.leads.find({}, {"_id": 0}).sort("createdAt", -1).to_list(1000)
+    return docs
+
+
+@api_router.patch("/leads/{lead_id}/status")
+async def update_lead_status(lead_id: str, payload: LeadStatusUpdate, _user: dict = Depends(require_auth)):
+    if payload.status not in LEAD_STATUSES:
+        raise HTTPException(status_code=400, detail="Status inválido.")
+    result = await db.leads.update_one({"id": lead_id}, {"$set": {"status": payload.status}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Lead não encontrado.")
+    return {"message": "Status atualizado."}
+
+
+ALLOWED_DEMO_KEYS = {
+    "nome", "descricao", "telefone", "whatsapp", "endereco", "mapsUrl", "horario",
+    "instagram", "facebook", "tiktok", "website", "googleReviewUrl",
+    "profileUrl", "headerUrl", "headerType", "corFundo", "corBotoes",
+    "corBotoesOpacidade", "servicos", "botoesPersonalizados",
+}
+
+
+@api_router.get("/public/demo")
+async def get_demo():
+    doc = await db.demo_config.find_one({"id": "demo"}, {"_id": 0})
+    if not doc:
+        return {"id": "demo", **DEMO_DEFAULT}
+    return doc
+
+
+@api_router.put("/demo")
+async def update_demo(payload: dict, _user: dict = Depends(require_auth)):
+    updates = {k: payload[k] for k in ALLOWED_DEMO_KEYS if k in payload}
+    updates["updatedAt"] = now_iso()
+    await db.demo_config.update_one({"id": "demo"}, {"$set": updates}, upsert=True)
+    doc = await db.demo_config.find_one({"id": "demo"}, {"_id": 0})
     return doc
 
 
@@ -437,6 +559,12 @@ async def seed_db():
         cliente = Cliente(**SEED_CLIENTE)
         await db.clientes.insert_one(cliente.model_dump())
         logger.info("Seed: cliente 'Studio Exemplo' criado.")
+
+    # Configuração do mini site demonstrativo (idempotente)
+    existing_demo = await db.demo_config.find_one({"id": "demo"})
+    if not existing_demo:
+        await db.demo_config.insert_one({"id": "demo", **DEMO_DEFAULT, "createdAt": now_iso()})
+        logger.info("Seed: configuração 'demo' criada.")
 
 
 app.include_router(api_router)

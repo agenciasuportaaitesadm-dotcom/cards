@@ -1,0 +1,42 @@
+{
+  "summary": "Teste consolidado das 7 melhorias + fix crítico do Select de Status. BACKEND: 56/56 pytest OK, incluindo nova suíte /app/backend/tests/test_leads_demo_botoes.py (16 testes: POST/GET/PATCH /api/leads, auth guards, /api/public/demo + PUT /api/demo, Cliente com botoesPersonalizados + corBotoesOpacidade, e a preservação de status quando PUT envia status='' ou omite o campo). FRONTEND: todas as 10 áreas do checklist passaram. Fix do Status VERIFICADO: ao editar Barbearia Teste Serviços (Publicado), field-status já mostra 'Publicado', salvar sem tocar no campo retorna toast 'Cliente atualizado com sucesso' e o cliente permanece 'Publicado' na listagem e via GET público. Nenhum bug bloqueante encontrado.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET/DELETE /api/leads/{id}", "issue": "Não existe endpoint para excluir/limpar leads — testes acumulam leads TEST_ no banco (5 leads atualmente). Sugerir adicionar DELETE /api/leads/{id} para limpeza pós-teste e higiene do painel."},
+      {"endpoint": "POST /api/leads", "issue": "Aceita payload sem nome/telefone e cria lead vazio (a validação de 'preencha ao menos nome e WhatsApp' é apenas no frontend). Sugerir validar no backend (400 quando ambos vazios) para evitar spam por API direta."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/c/teste-escuro-botao-claro", "issues": ["Apesar do nome sugerir 'fundo escuro + botão claro', o body computado é rgb(255,255,255) (branco). Botões usam bg #F5F5F5 com texto escuro — legível, mas contradiz o nome/objetivo do slug. Verificar seed do cliente (corFundo salvo pode estar errado)."]},
+      {"screen": "/c/cliente-botoes", "issues": ["Botões personalizados renderizam com bg rgba(14,165,233,0.5) — sky-500 (#0EA5E9), não o vermelho #E11D2A citado no review_request. Provavelmente o seed atual do cliente usa outra cor. Opacidade 0.5 aplicada via alpha do rgba (funciona; texto escuro rgb(11,11,15) mantém contraste sobre botão claro/translúcido)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_leads_demo_botoes.py",
+    "/app/backend/tests/test_servicos.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Opcional/baixa prioridade) Adicionar DELETE /api/leads/{id} para permitir limpeza; hoje leads TEST_ ficam permanentes.",
+    "(Opcional) Validar no backend POST /api/leads exigindo nome e telefone (400 se ausentes), consistente com a validação já feita no frontend.",
+    "(Cosmético) Alinhar naming dos data-testid do nav no Admin.jsx: o review_request cita 'admin-nav-clientes' e 'admin-nav-new-client', mas o código usa 'admin-nav-clients' (inglês) para Clientes e Novo cliente, enquanto Leads/Demo/Aparência/Config usam o padrão em pt-BR. Padronizar tudo em pt-BR ou tudo em inglês. Não é bug funcional.",
+    "(Cosmético) Revisar seed de /c/cliente-botoes: corBotoes real é sky-500 (#0EA5E9), não #E11D2A como o review_request assume; seed de /c/teste-escuro-botao-claro tem corFundo branco em vez de escuro."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx ainda ~1205 linhas — considerar extrair NewClientView, LeadsView, BotoesEditor em arquivos próprios para manutenção.",
+    "server.py: ClienteBase.status permanece Optional[str] sem Literal — o guard 'ignora status vazio' em update_cliente resolve o caso do bug, mas ainda aceitaria qualquer string. Recomendo Literal['Rascunho','Publicado'] no modelo para reforçar.",
+    "server.py: POST /api/leads não valida obrigatoriedade — recomendar exigir nome + telefone."
+  ],
+  "updated_files": ["/app/backend/tests/test_leads_demo_botoes.py"],
+  "success_rate": {"backend": "100% (56/56)", "frontend": "100% (todas as 10 áreas do checklist passaram)"},
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (inalterada)",
+  "seed_data_creation": "Criado lead 'TEST_UI Lead Playwright' via formulário público e alternado seu status para 'Em contato' e depois 'Concluído' (persistiu). Criado e removido cliente TEST_Botoes Cliente (test-botoes-cliente-auto) via API. Demo temporariamente renomeado para 'TEST_UI Demo Nome Playwright' e revertido para 'Studio Exemplo' ao final.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "VERIFICADO OK NESTA ITERAÇÃO: (1) Landing avatar em hero-phone-mockup (landing-preview-avatar visível, src do /api/public/demo). (2) landing-logo contém <img src=/brand-icon.png>; favicon aponta para /brand-icon.png. (3) POST /api/leads público 201, list_leads requer auth, PATCH /api/leads/{id}/status valida enum (400 se inválido, 404 se não achado). Frontend: form limpa em sucesso, mantém dados em erro, toasts em pt-BR. Aba Leads renderiza selects+badges por id, mudança persiste. (4) Ausência de whatsapp-contact-button na landing; card-whatsapp-button existe em /c/barbearia-servicos. (5) Fix Status: editar barbearia-servicos (Publicado) mostra field-status='Publicado' e salvar sem tocar mantém Publicado (toast 'Cliente atualizado com sucesso'). Backend teste também confirma: PUT com status='' ou sem status preserva o valor atual. (6) BotoesEditor completo: field-opacidade (Radix Slider SPAN aria), botoes-add-button, botao-label/url/cor-N, botao-up/down/remove-N, /c/cliente-botoes renderiza card-custom-button-0 e -1 com sanitizeUrl e opacidade rgba(...,0.5); URL sem esquema recebe https:// automaticamente (verificado pelo href final). (7) Demo editável via aba 'Mini site demo' (admin-nav-demo): campo field-nome, sem exigência de slug, salvar via admin-save-client-button persiste em /api/public/demo e reflete em / e /demo/cliente-exemplo. NAV testids: admin-nav-clients, admin-nav-new-client (INGLÊS), admin-nav-leads, admin-nav-demo, admin-nav-appearance, admin-nav-settings (pt-BR). Existe duplicado desktop/mobile — usar query_selector_all e clicar no primeiro visível. NÃO retestado: crop de imagem, upload de mídia via UI (já cobertos em iterações anteriores).",
+  "rca_of_the_issue": "N/A nesta iteração — o bug do Select de Status (iteração 10) foi corrigido: (a) NewClientView agora remonta form ao trocar de editing (key/effect), field-status renderiza 'Publicado' corretamente; (b) backend update_cliente ignora status vazio/ausente. Ambos comportamentos foram cobertos por testes automatizados (test_status_fix_empty_status_preserves_publicado, test_status_fix_missing_status_preserves) e por teste manual via UI."
+}

@@ -11,8 +11,17 @@ import {
   Clock,
   Volume2,
   VolumeX,
+  Link as LinkIcon2,
 } from "lucide-react";
-import { isDark, readableOn, withAlpha, shade } from "@/lib/themeContrast";
+import { isDark, readableOn, withAlpha, shade, blendOver } from "@/lib/themeContrast";
+
+const sanitizeUrl = (url) => {
+  const u = (url || "").trim();
+  if (!u) return "#";
+  if (/^(javascript:|data:|vbscript:)/i.test(u)) return "#";
+  if (/^(https?:|tel:|mailto:)/i.test(u)) return u;
+  return `https://${u}`;
+};
 
 const DEFAULT_COVER =
   "https://images.pexels.com/photos/13068380/pexels-photo-13068380.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940";
@@ -89,11 +98,17 @@ const CardTemplate = ({ data }) => {
   const surfaceBorder = darkBg ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.10)";
   const avatarRing = darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.10)";
 
-  // ----- Cores do botão de tema (contraste automático) -----
-  const btnFg = readableOn(corBotoes);
-  // Hover acessível: afasta a cor do botão da cor do texto para manter/elevar o contraste.
-  const btnTextIsLight = btnFg === "#FFFFFF";
-  const btnHover = btnTextIsLight ? shade(corBotoes, -0.14) : shade(corBotoes, 0.16);
+  // ----- Cores do botão de tema (contraste automático + opacidade) -----
+  const btnFg = readableOn(corBotoes); // usado no controle de som (fundo sólido)
+  const op = Math.max(0.15, Math.min(1, c.corBotoesOpacidade ?? 1));
+  const btnTheme = (baseHex) => {
+    const base = baseHex || corBotoes;
+    const blended = blendOver(base, corFundo, op);
+    const fgc = readableOn(blended);
+    const hoverBase = fgc === "#FFFFFF" ? shade(base, -0.14) : shade(base, 0.16);
+    return { bg: withAlpha(base, op), fg: fgc, hover: withAlpha(hoverBase, op) };
+  };
+  const std = btnTheme(corBotoes);
 
   const buttons = [
     c.whatsapp && { icon: MessageCircle, label: "WhatsApp", href: `https://wa.me/${onlyDigits(c.whatsapp)}`, testId: "card-whatsapp-button" },
@@ -104,6 +119,10 @@ const CardTemplate = ({ data }) => {
     c.website && { icon: Globe, label: "Website", href: c.website, testId: "card-website-button" },
     c.googleReviewUrl && { icon: Star, label: "Avaliar no Google", href: c.googleReviewUrl, testId: "card-google-review-button" },
   ].filter(Boolean);
+
+  const customButtons = [...(c.botoesPersonalizados || [])]
+    .filter((b) => b && b.label && b.url)
+    .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
 
   const toggleMute = () => {
     const v = videoRef.current;
@@ -191,11 +210,26 @@ const CardTemplate = ({ data }) => {
         </div>
 
         {/* Botões */}
-        {buttons.length > 0 && (
+        {(buttons.length > 0 || customButtons.length > 0) && (
           <div className="mt-6 space-y-3 px-6">
             {buttons.map((b) => (
-              <ActionButton key={b.testId} {...b} btn={corBotoes} btnFg={btnFg} btnHover={btnHover} />
+              <ActionButton key={b.testId} {...b} btn={std.bg} btnFg={std.fg} btnHover={std.hover} />
             ))}
+            {customButtons.map((b, i) => {
+              const t = btnTheme(b.cor || corBotoes);
+              return (
+                <ActionButton
+                  key={`custom-${i}`}
+                  icon={LinkIcon2}
+                  label={b.label}
+                  href={sanitizeUrl(b.url)}
+                  testId={`card-custom-button-${i}`}
+                  btn={t.bg}
+                  btnFg={t.fg}
+                  btnHover={t.hover}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -230,7 +264,7 @@ const CardTemplate = ({ data }) => {
                   rel="noopener noreferrer"
                   data-testid="card-address-maps-button"
                   className="dc-action mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold"
-                  style={{ "--btn": corBotoes, "--btn-fg": btnFg, "--btn-hover": btnHover, color: btnFg }}
+                  style={{ "--btn": std.bg, "--btn-fg": std.fg, "--btn-hover": std.hover, color: std.fg }}
                 >
                   <MapPin className="h-4 w-4" /> Localização
                 </a>
