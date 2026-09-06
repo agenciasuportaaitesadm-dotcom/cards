@@ -71,12 +71,12 @@ const PhoneMockup = ({ demo }) => {
           <img src={cover} alt="Capa" className="h-full w-full object-cover opacity-90" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#09090B] to-transparent" />
         </div>
-        <div className="-mt-10 flex flex-col items-center px-5 pb-6">
+        <div className="relative z-10 -mt-10 flex flex-col items-center px-5 pb-6">
           <img
             src={avatar}
             alt="Foto de perfil"
             data-testid="landing-preview-avatar"
-            className="h-20 w-20 rounded-full border-4 border-[#09090B] object-cover shadow-lg"
+            className="relative z-10 h-20 w-20 rounded-full border-4 border-[#09090B] object-cover shadow-lg"
           />
           <h4 className="font-heading mt-3 text-base font-bold text-white">{nome}</h4>
           <p className="mt-1 text-center text-[11px] leading-snug text-zinc-400">{descricao}</p>
