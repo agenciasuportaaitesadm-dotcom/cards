@@ -1,0 +1,41 @@
+{
+  "summary": "Rodada consolidada de Cupons + Landing/preço R$250 + Opacidade + Leads. BACKEND: pytest 69/69 (56 anteriores + 13 novos em /app/backend/tests/test_coupons.py). Nova suíte cobre validate (adriano10, case-insensitive/trim, inexistente, vazio), auth guards (GET/POST/PUT/DELETE /api/coupons e GET /api/leads exigem token), CRUD flow (create -> list -> validate ativo -> update+deactivate -> validate inativo -> delete -> gone), bounds (0/101 rejeitados), duplicate (409/400), e integração Lead (adriano10 grava cupomValido/percentualAplicado/valorFinal=225; inválido persiste com valorFinal=250 e cupomValido=false; sem cupom valorFinal=250). FRONTEND: landing offer-section com preço R$ 250,00 e offer-cta visíveis; cupom adriano10 mostra feedback verde '10% de desconto, Valor final R$ 225,00' e envia lead (toast 'Recebemos seu contato!'); cupom 'naoexiste_xyz' mostra 'Cupom inexistente.' vermelho e ainda envia. Admin: aba Cupons lista adriano10 (Ativo), criou promo20@20% (aparece minúsculo), toggle Inativo/Ativo funciona, delete remove da lista. Aba Leads exibe lead-cupom-<id> com 'Preço: R$ 250.00 · Cupom adriano10: -10% → R$ 225.00', 'Cupom naoexiste_xyz: inválido (Cupom inexistente.)' e 'Sem cupom'. Opacidade em /c/cliente-botoes: TODOS os botões (card-whatsapp-button, card-custom-button-0, card-custom-button-1) usam alpha=0.5 no background (rgba(225,29,42,0.5), rgba(14,165,233,0.5), rgba(147,51,234,0.5)) e texto rgb(11,11,15) → contraste OK. Regressão: login/logout, listagem de clientes, editar/salvar cliente preserva status Publicado (toast 'Cliente atualizado com sucesso').",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/leads", "issue": "Retorna apenas {message, id} — não expõe os campos calculados (cupomValido/percentualAplicado/valorFinal). Frontend consegue exibir porque já mostra localmente, mas API pública fica menos observável (consumidores precisam listar em /api/leads com auth). Considere retornar o objeto Lead completo (ou pelo menos o resumo de preço/cupom) para melhor DX."},
+      {"endpoint": "POST /api/leads", "issue": "Persiste do iter 11: não valida obrigatoriedade de nome+telefone (aceita payload vazio e cria lead). Frontend valida, mas API pública fica vulnerável a spam."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin -> aba Leads", "issues": ["Preço no lead-cupom é renderizado como 'R$ 250.00' (ponto) em vez do padrão pt-BR 'R$ 250,00' (vírgula). Feedback do cupom na landing usa 'R$ 225,00' corretamente com vírgula. Recomendo padronizar no Admin.jsx (ex: Number(x).toLocaleString('pt-BR', {style:'currency',currency:'BRL'}))."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_coupons.py",
+    "/app/backend/tests/test_leads_demo_botoes.py",
+    "/app/backend/tests/test_servicos.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Opcional/baixa) POST /api/leads: retornar o objeto Lead completo (com precoOriginal/valorFinal/cupomCodigo/cupomValido) para melhor observabilidade de integração.",
+    "(Opcional/baixa) POST /api/leads: validar nome + telefone obrigatórios no backend (400 se ausentes).",
+    "(Cosmético) Padronizar formatação BRL no lead-cupom da aba Leads em Admin.jsx: usar 'R$ 250,00' (vírgula) via toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) — hoje sai 'R$ 250.00' (ponto)."
+  ],
+  "critical_code_review_comments": [
+    "Admin.jsx continua com ~1308 linhas — considerar extrair CouponsView e LeadsView em componentes próprios para reduzir tamanho e melhorar manutenção.",
+    "server.py: modelo Coupon usa percentual: int mas endpoint /coupons/validate aceita e retorna 'percentual' como int/None inconsistente (int quando válido, 0 quando ausente). Considerar sempre retornar int coerente.",
+    "backend/tests/test_leads_demo_botoes.py: warnings de Pytest 10 sobre 'Class-scoped fixture defined as instance method' — refatorar para @classmethod."
+  ],
+  "updated_files": ["/app/backend/tests/test_coupons.py"],
+  "success_rate": {"backend": "100% (69/69 pytest)", "frontend": "100% (landing + admin coupons + leads + opacidade + regressão)"},
+  "test_credentials": "agenciasuportaaitesadm@gmail.com / DigitalCards@2026 (inalterada)",
+  "seed_data_creation": "Criados via UI/API: 2 leads de teste (TEST_UI CupomValido com adriano10=225, TEST_UI CupomInvalido com naoexiste_xyz=250). Cupom seed 'adriano10' presente e ativo. Cupom 'promo20' criado e deletado durante o teste (rows count final = 0). Contador de usos do adriano10 foi incrementado pelos POSTs de teste.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "COUPONS: endpoints públicos são /api/coupons/validate (POST) e /api/leads (POST); admin-only: GET/POST/PUT/DELETE /api/coupons e GET /api/leads. Lead persiste campos: precoOriginal, cupomCodigo, cupomValido (bool), percentualAplicado (int), valorDesconto (float), valorFinal (float), motivoRecusa. Testids-chave: offer-section, offer-price, offer-cta, form-input-cupom, form-cupom-apply, cupom-feedback, interest-form-submit-button, form-input-nome, form-input-whatsapp, form-input-empresa, form-input-email, form-input-mensagem. Admin nav: admin-nav-coupons -> coupons-view; coupon-row-<codigo>, coupon-new-codigo/coupon-new-percentual/coupon-create-button, coupon-toggle-<codigo>/coupon-status-<codigo>/coupon-delete-<codigo>/coupon-pct-<codigo>. admin-nav-leads -> leads-view com lead-cupom-<id>. Opacidade: field-opacidade (Radix slider), corBotoesOpacidade persiste em cliente; renderer em CardTemplate.jsx aplica alpha em rgba (base e custom buttons). NAV desktop+mobile: usar query_selector_all e clicar no primeiro visível. Testados TODOS os itens do review_request. Nenhum bug bloqueante.",
+  "rca_of_the_issue": "N/A — nenhuma issue crítica encontrada nesta iteração."
+}

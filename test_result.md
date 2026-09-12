@@ -103,6 +103,17 @@
 #====================================================================================================
 
 frontend:
+  - task: "Régua de opacidade (fix) + landing de vendas R$250 + cupom no form + gerenciador de cupons + cupom/preço no lead"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py, frontend/src/pages/Landing.jsx, frontend/src/pages/Admin.jsx, frontend/src/components/CardTemplate.jsx, frontend/src/components/ui/slider.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "1) Opacidade: slider 0-100% (min 0), persiste corBotoesOpacidade por cliente, aplicada a botões padrão+personalizados via blendOver com contraste auto e piso de 0.15 no render para legibilidade. 2) Landing vira página de vendas: seção de oferta R$250,00, 'Compra 100% segura — só paga depois de pronto', CTA para o formulário, aviso de atendimento/cobrança manuais. 3) Campo Cupom no form: valida no backend (POST /api/coupons/validate), mensagem pt-BR, desconto percentual sobre 250. 4) Gerenciador de Cupons (aba Cupons): CRUD, ativar/desativar, percentual 1-100, usos; seed adriano10 (10%) idempotente. 5) Lead grava precoOriginal/cupomCodigo/cupomValido/percentualAplicado/valorDesconto/valorFinal/motivoRecusa e exibe no painel de Leads. Endpoints de cupons/leads protegidos (401 sem token, exceto POST /leads e validate que são públicos). Backend 56/56 + validado por curl (adriano10->225, inválido->250, lead grava cupom)."
   - task: "Rodada 7-em-1: landing (logo/avatar/lead/sem WhatsApp) + Leads + Demo editável + botões personalizados + opacidade + fix Select Status"
     implemented: true
     working: "NA"

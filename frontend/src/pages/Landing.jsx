@@ -102,10 +102,20 @@ const Landing = () => {
   const [form, setForm] = useState({ nome: "", empresa: "", email: "", whatsapp: "", mensagem: "" });
   const [submitting, setSubmitting] = useState(false);
   const [demo, setDemo] = useState(null);
+  const [cupom, setCupom] = useState("");
+  const [cupomInfo, setCupomInfo] = useState(null);
 
   useEffect(() => {
     axios.get(`${API}/public/demo`).then((r) => setDemo(r.data)).catch(() => {});
   }, []);
+
+  const checarCupom = async () => {
+    if (!cupom.trim()) { setCupomInfo(null); return; }
+    try {
+      const { data } = await axios.post(`${API}/coupons/validate`, { codigo: cupom });
+      setCupomInfo(data);
+    } catch { setCupomInfo(null); }
+  };
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -123,10 +133,12 @@ const Landing = () => {
         email: form.email,
         telefone: form.whatsapp,
         mensagem: form.mensagem,
+        cupom: cupom,
         origem: "landing_fale_conosco",
       });
       toast.success("Recebemos seu contato! Em breve entraremos em contato.");
       setForm({ nome: "", empresa: "", email: "", whatsapp: "", mensagem: "" });
+      setCupom(""); setCupomInfo(null);
     } catch {
       toast.error("Não foi possível enviar agora. Tente novamente em instantes.");
     } finally {
@@ -290,6 +302,30 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Oferta / Preço */}
+      <section id="oferta" className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-600 to-violet-600 p-8 text-center text-white shadow-xl shadow-indigo-500/20 sm:p-12" data-testid="offer-section">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-200">Oferta</p>
+          <h2 className="font-heading mt-3 text-2xl font-bold sm:text-3xl">Seu cartão digital profissional</h2>
+          <p className="mt-4 text-sm text-indigo-100">A partir de</p>
+          <p className="font-heading mt-1 text-5xl font-extrabold" data-testid="offer-price">R$ 250,00</p>
+          <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold">
+            <ShieldCheck className="h-4 w-4" /> Compra 100% segura — só paga depois de pronto
+          </div>
+          <p className="mx-auto mt-5 max-w-md text-sm text-indigo-100">
+            Preencha o formulário abaixo para solicitar o seu cartão digital. Nesta versão o atendimento e a
+            cobrança são <strong>manuais</strong>, sem checkout automático — combinamos tudo com você direto.
+          </p>
+          <Button
+            data-testid="offer-cta"
+            onClick={() => document.getElementById("contato")?.scrollIntoView({ behavior: "smooth" })}
+            className="mt-6 h-12 rounded-full bg-white px-7 text-base font-semibold text-indigo-700 hover:bg-indigo-50"
+          >
+            Solicitar meu cartão <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+
       {/* Formulário de interesse */}
       <section id="contato" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-2xl">
@@ -325,6 +361,16 @@ const Landing = () => {
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="mensagem">Mensagem</Label>
                 <Textarea data-testid="form-input-mensagem" id="mensagem" name="mensagem" value={form.mensagem} onChange={handleChange} placeholder="Conte um pouco sobre o seu negócio" rows={4} />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="cupom">Cupom de desconto (opcional)</Label>
+                <div className="flex gap-2">
+                  <Input data-testid="form-input-cupom" id="cupom" name="cupom" value={cupom} onChange={(e) => setCupom(e.target.value)} onBlur={checarCupom} placeholder="Ex: adriano10" />
+                  <Button type="button" variant="outline" className="rounded-full" data-testid="form-cupom-apply" onClick={checarCupom}>Aplicar</Button>
+                </div>
+                {cupomInfo && (
+                  <p data-testid="cupom-feedback" className={`text-sm font-medium ${cupomInfo.valido ? "text-emerald-600" : "text-red-600"}`}>{cupomInfo.message}</p>
+                )}
               </div>
             </div>
             <Button data-testid="interest-form-submit-button" type="submit" disabled={submitting} className="mt-6 h-12 w-full rounded-full bg-indigo-600 text-base hover:bg-indigo-700">

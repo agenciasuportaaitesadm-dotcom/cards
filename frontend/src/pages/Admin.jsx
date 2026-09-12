@@ -35,6 +35,7 @@ import {
   ListChecks,
   Inbox,
   MonitorSmartphone,
+  Ticket,
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 import { toast } from "sonner";
@@ -100,6 +101,7 @@ const NAV = [
   { id: "clients", label: "Clientes", icon: Users, testId: "admin-nav-clients" },
   { id: "new-client", label: "Novo cliente", icon: UserPlus, testId: "admin-nav-new-client" },
   { id: "leads", label: "Leads", icon: Inbox, testId: "admin-nav-leads" },
+  { id: "coupons", label: "Cupons", icon: Ticket, testId: "admin-nav-coupons" },
   { id: "demo", label: "Mini site demo", icon: MonitorSmartphone, testId: "admin-nav-demo" },
   { id: "appearance", label: "Aparência", icon: Palette, testId: "admin-nav-appearance" },
   { id: "settings", label: "Configurações", icon: Settings, testId: "admin-nav-settings" },
@@ -484,6 +486,7 @@ const LeadsView = ({ onLogout }) => {
     }
   };
   const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR"); } catch { return iso; } };
+  const brl = (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const badge = (s) => (s === "Concluído" ? "bg-emerald-50 text-emerald-700" : s === "Em contato" ? "bg-amber-50 text-amber-700" : "bg-indigo-50 text-indigo-700");
 
   return (
@@ -512,6 +515,18 @@ const LeadsView = ({ onLogout }) => {
                     {l.email && <span>E-mail: {l.email}</span>}
                   </div>
                   {l.mensagem && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{l.mensagem}</p>}
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs" data-testid={`lead-cupom-${l.id}`}>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Preço: {brl(l.precoOriginal ?? 250)}</span>
+                    {l.cupomCodigo ? (
+                      l.cupomValido ? (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">Cupom {l.cupomCodigo}: -{l.percentualAplicado}% → {brl(l.valorFinal)}</span>
+                      ) : (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-red-700">Cupom {l.cupomCodigo}: inválido ({l.motivoRecusa})</span>
+                      )
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">Sem cupom</span>
+                    )}
+                  </div>
                   <p className="mt-2 text-xs text-slate-400">{fmt(l.createdAt)} · origem: {l.origem}</p>
                 </div>
                 <div className="sm:w-44">
@@ -522,6 +537,94 @@ const LeadsView = ({ onLogout }) => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CouponsView = ({ onLogout }) => {
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [novo, setNovo] = useState({ codigo: "", percentual: 10 });
+  const fetchCoupons = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await axios.get(`${API}/coupons`);
+      setCoupons(r.data);
+    } catch (e) {
+      if (e?.response?.status === 401) return onLogout();
+      toast.error("Não foi possível carregar os cupons.");
+    } finally {
+      setLoading(false);
+    }
+  }, [onLogout]);
+  useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
+
+  const criar = async () => {
+    if (!novo.codigo.trim()) return toast.error("Informe o código do cupom.");
+    try {
+      await axios.post(`${API}/coupons`, { codigo: novo.codigo, percentual: Number(novo.percentual) });
+      toast.success("Cupom criado.");
+      setNovo({ codigo: "", percentual: 10 });
+      fetchCoupons();
+    } catch (err) {
+      toast.error(formatError(err?.response?.data?.detail, "Não foi possível criar o cupom."));
+    }
+  };
+  const toggle = async (c) => {
+    try { await axios.put(`${API}/coupons/${c.id}`, { ativo: !c.ativo }); setCoupons((l) => l.map((x) => (x.id === c.id ? { ...x, ativo: !c.ativo } : x))); }
+    catch { toast.error("Não foi possível atualizar o cupom."); }
+  };
+  const setPct = async (c, pct) => {
+    const n = Number(pct);
+    if (!(n >= 1 && n <= 100)) return;
+    try { await axios.put(`${API}/coupons/${c.id}`, { percentual: n }); setCoupons((l) => l.map((x) => (x.id === c.id ? { ...x, percentual: n } : x))); }
+    catch { toast.error("Não foi possível atualizar o percentual."); }
+  };
+  const excluir = async (c) => {
+    try { await axios.delete(`${API}/coupons/${c.id}`); setCoupons((l) => l.filter((x) => x.id !== c.id)); toast.success("Cupom removido."); }
+    catch { toast.error("Não foi possível remover o cupom."); }
+  };
+
+  return (
+    <div data-testid="coupons-view">
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">Cupons</h1>
+        <p className="mt-1 text-sm text-slate-500">Cupons de desconto percentual aplicados sobre R$ 250,00 no formulário da landing.</p>
+      </div>
+      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <Label className="text-sm">Código</Label>
+          <Input data-testid="coupon-new-codigo" value={novo.codigo} onChange={(e) => setNovo({ ...novo, codigo: e.target.value })} placeholder="ex: adriano10" className="mt-1" />
+        </div>
+        <div className="w-full sm:w-40">
+          <Label className="text-sm">Desconto (%)</Label>
+          <Input data-testid="coupon-new-percentual" type="number" min={1} max={100} value={novo.percentual} onChange={(e) => setNovo({ ...novo, percentual: e.target.value })} className="mt-1" />
+        </div>
+        <Button data-testid="coupon-create-button" onClick={criar} className="rounded-full bg-indigo-600 hover:bg-indigo-700"><Plus className="mr-2 h-4 w-4" /> Criar cupom</Button>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-16 text-slate-400"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : coupons.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-400" data-testid="coupons-empty">Nenhum cupom cadastrado.</div>
+      ) : (
+        <div className="space-y-3">
+          {coupons.map((c) => (
+            <div key={c.id} data-testid={`coupon-row-${c.codigo}`} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="font-mono font-semibold text-slate-900">{c.codigo}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`} data-testid={`coupon-status-${c.codigo}`}>{c.ativo ? "Ativo" : "Inativo"}</span>
+                <span className="text-xs text-slate-400">{c.usos || 0} uso(s)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input data-testid={`coupon-pct-${c.codigo}`} type="number" min={1} max={100} defaultValue={c.percentual} onBlur={(e) => setPct(c, e.target.value)} className="w-20" />
+                <span className="text-sm text-slate-500">%</span>
+                <Button type="button" variant="outline" size="sm" className="rounded-full" data-testid={`coupon-toggle-${c.codigo}`} onClick={() => toggle(c)}>{c.ativo ? "Desativar" : "Ativar"}</Button>
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:bg-red-50 hover:text-red-600" data-testid={`coupon-delete-${c.codigo}`} onClick={() => excluir(c)} aria-label="Excluir cupom"><Trash2 className="h-4 w-4" /></Button>
               </div>
             </div>
           ))}
@@ -646,7 +749,7 @@ const NewClientView = ({ editing, onSaved, onCancel, mode = "client" }) => {
             </Field>
             <div className="sm:col-span-2">
               <Label className="text-sm font-medium text-slate-700">Opacidade dos botões: {Math.round((form.corBotoesOpacidade ?? 1) * 100)}%</Label>
-              <Slider data-testid="field-opacidade" value={[form.corBotoesOpacidade ?? 1]} min={0.2} max={1} step={0.05} onValueChange={(v) => setForm((f) => ({ ...f, corBotoesOpacidade: v[0] }))} className="mt-3" />
+              <Slider data-testid="field-opacidade" value={[form.corBotoesOpacidade ?? 1]} min={0} max={1} step={0.05} onValueChange={(v) => setForm((f) => ({ ...f, corBotoesOpacidade: v[0] }))} className="mt-3" />
               <p className="mt-1 text-xs text-slate-400">Aplica-se a todos os botões (padrão e personalizados). O texto mantém contraste automático.</p>
             </div>
           </div>
@@ -1126,6 +1229,7 @@ const Dashboard = ({ user, onLogout }) => {
           <NewClientView key={editing?.id || "new"} editing={editing} onSaved={handleSaved} onCancel={() => go("clients")} />
         )}
         {active === "leads" && <LeadsView onLogout={onLogout} />}
+        {active === "coupons" && <CouponsView onLogout={onLogout} />}
         {active === "demo" && <NewClientView key="demo" mode="demo" onSaved={() => {}} onCancel={() => go("overview")} />}
         {active === "appearance" && <PlaceholderView testId="appearance-view" icon={Palette} title="Aparência" description="Temas e estilos globais dos cartões." />}
         {active === "settings" && <SecurityView onLogout={onLogout} />}

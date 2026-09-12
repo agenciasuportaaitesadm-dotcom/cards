@@ -165,6 +165,13 @@ class Lead(BaseModel):
     mensagem: Optional[str] = ""
     origem: Optional[str] = "landing"
     status: str = "Novo"
+    precoOriginal: float = 250.0
+    cupomCodigo: Optional[str] = ""
+    cupomValido: bool = False
+    percentualAplicado: float = 0.0
+    valorDesconto: float = 0.0
+    valorFinal: float = 250.0
+    motivoRecusa: Optional[str] = ""
     createdAt: str = Field(default_factory=now_iso)
 
 
@@ -176,13 +183,84 @@ class LeadCreate(BaseModel):
     telefone: Optional[str] = ""
     mensagem: Optional[str] = ""
     origem: Optional[str] = "landing"
+    cupom: Optional[str] = ""
 
 
 class LeadStatusUpdate(BaseModel):
     status: str
 
 
+class Coupon(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    codigo: str
+    percentual: int
+    ativo: bool = True
+    validadeInicio: Optional[str] = ""
+    validadeFim: Optional[str] = ""
+    usos: int = 0
+    createdAt: str = Field(default_factory=now_iso)
+
+
+class CouponCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    codigo: str
+    percentual: int
+    ativo: Optional[bool] = True
+    validadeInicio: Optional[str] = ""
+    validadeFim: Optional[str] = ""
+
+
+class CouponUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    codigo: Optional[str] = None
+    percentual: Optional[int] = None
+    ativo: Optional[bool] = None
+    validadeInicio: Optional[str] = None
+    validadeFim: Optional[str] = None
+
+
 LEAD_STATUSES = {"Novo", "Em contato", "Concluído"}
+BASE_PRICE = 250.0
+
+
+def _parse_iso(s):
+    try:
+        return datetime.fromisoformat((s or "").replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+async def evaluate_coupon(code):
+    codigo = (code or "").strip().lower()
+    result = {"codigo": codigo, "valido": False, "percentual": 0, "motivo": ""}
+    if not codigo:
+        return result
+    c = await db.coupons.find_one({"codigo": codigo})
+    if not c:
+        result["motivo"] = "Cupom inexistente."
+        return result
+    if not c.get("ativo"):
+        result["motivo"] = "Cupom inativo."
+        return result
+    now = datetime.now(timezone.utc)
+    vi = _parse_iso(c.get("validadeInicio"))
+    vf = _parse_iso(c.get("validadeFim"))
+    if vi and now < vi:
+        result["motivo"] = "Cupom ainda não está válido."
+        return result
+    if vf and now > vf:
+        result["motivo"] = "Cupom expirado."
+        return result
+    result["valido"] = True
+    result["percentual"] = int(c.get("percentual", 0))
+    return result
+
+
+def _price_from_coupon(ev):
+    pct = ev["percentual"] if ev["valido"] else 0
+    desconto = round(BASE_PRICE * pct / 100, 2)
+    return pct, desconto, round(BASE_PRICE - desconto, 2)
 
 
 class ClienteBase(BaseModel):
@@ -454,9 +532,24 @@ DEMO_DEFAULT = {
 
 @api_router.post("/leads", status_code=201)
 async def create_lead(payload: LeadCreate):
-    lead = Lead(**payload.model_dump())
+    ev = await evaluate_coupon(payload.cupom)
+    pct, desconto, final = _price_from_coupon(ev)
+    data = payload.model_dump()
+    data.pop("cupom", None)
+    lead = Lead(
+        **data,
+        precoOriginal=BASE_PRICE,
+        cupomCodigo=ev["codigo"],
+        cupomValido=ev["valido"],
+        percentualAplicado=pct,
+        valorDesconto=desconto,
+        valorFinal=final,
+        motivoRecusa=(ev["motivo"] if (ev["codigo"] and not ev["valido"]) else ""),
+    )
     await db.leads.insert_one(lead.model_dump())
-    return {"message": "Recebemos seu contato! Em breve retornaremos.", "id": lead.id}
+    if ev["valido"] and ev["codigo"]:
+        await db.coupons.update_one({"codigo": ev["codigo"]}, {"$inc": {"usos": 1}})
+    return {"message": "Recebemos seu contato! Em breve entraremos em contato.", "id": lead.id}
 
 
 @api_router.get("/leads", response_model=List[Lead])
@@ -473,6 +566,65 @@ async def update_lead_status(lead_id: str, payload: LeadStatusUpdate, _user: dic
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Lead não encontrado.")
     return {"message": "Status atualizado."}
+
+
+@api_router.post("/coupons/validate")
+async def validate_coupon(payload: dict):
+    ev = await evaluate_coupon(payload.get("codigo"))
+    pct, desconto, final = _price_from_coupon(ev)
+    if not ev["codigo"]:
+        msg = "Nenhum cupom informado."
+    elif ev["valido"]:
+        msg = f"Cupom aplicado: {pct}% de desconto. Valor final R$ {final:.2f}".replace(".", ",")
+    else:
+        msg = ev["motivo"] or "Cupom inválido."
+    return {"valido": ev["valido"], "percentual": pct, "precoOriginal": BASE_PRICE, "valorDesconto": desconto, "valorFinal": final, "message": msg}
+
+
+@api_router.get("/coupons", response_model=List[Coupon])
+async def list_coupons(_user: dict = Depends(require_auth)):
+    docs = await db.coupons.find({}, {"_id": 0}).sort("createdAt", -1).to_list(1000)
+    return docs
+
+
+@api_router.post("/coupons", response_model=Coupon, status_code=201)
+async def create_coupon(payload: CouponCreate, _user: dict = Depends(require_auth)):
+    codigo = (payload.codigo or "").strip().lower().replace(" ", "")
+    if not codigo:
+        raise HTTPException(status_code=400, detail="Informe o código do cupom.")
+    if not (1 <= int(payload.percentual) <= 100):
+        raise HTTPException(status_code=400, detail="O percentual deve estar entre 1% e 100%.")
+    if await db.coupons.find_one({"codigo": codigo}):
+        raise HTTPException(status_code=409, detail="Já existe um cupom com este código.")
+    coupon = Coupon(**{**payload.model_dump(), "codigo": codigo, "percentual": int(payload.percentual)})
+    await db.coupons.insert_one(coupon.model_dump())
+    return coupon
+
+
+@api_router.put("/coupons/{coupon_id}", response_model=Coupon)
+async def update_coupon(coupon_id: str, payload: CouponUpdate, _user: dict = Depends(require_auth)):
+    doc = await db.coupons.find_one({"id": coupon_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Cupom não encontrado.")
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if "codigo" in updates:
+        updates["codigo"] = updates["codigo"].strip().lower().replace(" ", "")
+        clash = await db.coupons.find_one({"codigo": updates["codigo"], "id": {"$ne": coupon_id}})
+        if clash:
+            raise HTTPException(status_code=409, detail="Já existe um cupom com este código.")
+    if "percentual" in updates and not (1 <= int(updates["percentual"]) <= 100):
+        raise HTTPException(status_code=400, detail="O percentual deve estar entre 1% e 100%.")
+    await db.coupons.update_one({"id": coupon_id}, {"$set": updates})
+    doc.update(updates)
+    return doc
+
+
+@api_router.delete("/coupons/{coupon_id}")
+async def delete_coupon(coupon_id: str, _user: dict = Depends(require_auth)):
+    result = await db.coupons.delete_one({"id": coupon_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cupom não encontrado.")
+    return {"message": "Cupom removido com sucesso."}
 
 
 ALLOWED_DEMO_KEYS = {
@@ -565,6 +717,11 @@ async def seed_db():
     if not existing_demo:
         await db.demo_config.insert_one({"id": "demo", **DEMO_DEFAULT, "createdAt": now_iso()})
         logger.info("Seed: configuração 'demo' criada.")
+
+    # Cupom inicial adriano10 (idempotente)
+    if not await db.coupons.find_one({"codigo": "adriano10"}):
+        await db.coupons.insert_one(Coupon(codigo="adriano10", percentual=10, ativo=True).model_dump())
+        logger.info("Seed: cupom 'adriano10' criado.")
 
 
 app.include_router(api_router)
